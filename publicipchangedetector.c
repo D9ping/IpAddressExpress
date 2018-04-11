@@ -77,9 +77,14 @@ int get_new_random_urlnr(int maxurls)
         fclose(rand_fd);
         /* Choose a new random urlnr between 0 and maxurls */
         int urlnr = (rand() % maxurls);
-        if (urlnr == lasturlnr) {
-            // one additional try.
+        uint tries = 0;
+        const uint MAXTRIESRNDNUM = 2048;
+        while (urlnr == lasturlnr) {
             int urlnr = (rand() % maxurls);
+            ++tries;
+            if (tries > MAXTRIESRNDNUM) {
+                exit(EXIT_FAILURE);
+            }
         }
 
         /* write urlnr */
