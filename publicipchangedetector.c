@@ -29,9 +29,9 @@
 */
 int is_valid_ipv4_addr(char *ipv4addr)
 {
-    struct sockaddr_in sa;
-    int result = inet_pton(AF_INET, ipv4addr, &(sa.sin_addr));
-    return result;
+        struct sockaddr_in sa;
+        int result = inet_pton(AF_INET, ipv4addr, &(sa.sin_addr));
+        return result;
 }
 
 
@@ -52,14 +52,14 @@ int get_new_random_urlnr(int maxurls)
         FILE * lasturlnr_fd;
         int lasturlnr = -1;
         if (access(filepathlasturlnr, F_OK) != -1) {
-            // exists
-            ssize_t bytesread;
-            size_t len = 0;
-            lasturlnr_fd = fopen(filepathlasturlnr, "r");
-            bytesread = getline(&strlasturlnr, &len, lasturlnr_fd);
-            fclose(lasturlnr_fd);
-            lasturlnr = atoi(strlasturlnr);
-            /* printf("lasturlnr = %d\n", lasturlnr); // DEBUG */
+                // exists
+                ssize_t bytesread;
+                size_t len = 0;
+                lasturlnr_fd = fopen(filepathlasturlnr, "r");
+                bytesread = getline(&strlasturlnr, &len, lasturlnr_fd);
+                fclose(lasturlnr_fd);
+                lasturlnr = atoi(strlasturlnr);
+                /* printf("lasturlnr = %d\n", lasturlnr); // DEBUG */
         }
 
         /* Initializes a random number generator using a seed from /dev/urandom */
@@ -80,11 +80,11 @@ int get_new_random_urlnr(int maxurls)
         uint tries = 0;
         const uint MAXTRIESRNDNUM = 2048;
         while (urlnr == lasturlnr) {
-            int urlnr = (rand() % maxurls);
-            ++tries;
-            if (tries > MAXTRIESRNDNUM) {
-                exit(EXIT_FAILURE);
-            }
+                int urlnr = (rand() % maxurls);
+                ++tries;
+                if (tries > MAXTRIESRNDNUM) {
+                        exit(EXIT_FAILURE);
+                }
         }
 
         /* write urlnr */
@@ -100,13 +100,13 @@ int get_new_random_urlnr(int maxurls)
 */
 void strip_on_newlinechar(char *str, int strlength)
 {
-    for (int i = 0; i < strlength; ++i) {
-        if (str[i] == '\n') {
-            /* Added null character here so it's shorter just before first line feed. */
-            str[i] = '\0';
-            return;
+        for (int i = 0; i < strlength; ++i) {
+                if (str[i] == '\n') {
+                        /* Added null character here so it's shorter just before first line feed. */
+                        str[i] = '\0';
+                        return;
+                }
         }
-    }
 }
 
 
@@ -130,7 +130,7 @@ char * read_file_ipaddr(char *filepathip)
         bytesread = getline(&ipaddrstr, &len, fpfileip);
         // A hex text full out written IPv6 address is 34 characters +1 for null character.
         if (bytesread > 35) {
-        fclose(fpfileip);
+                fclose(fpfileip);
                 fprintf(stderr, "Error: response server too long.\n");
                 exit(EXIT_FAILURE);
         }
