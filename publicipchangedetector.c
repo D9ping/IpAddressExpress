@@ -148,7 +148,7 @@ char * read_file_ipaddr(char *filepathip)
 */
 char * get_url_ipservice()
 {
-        int urlnr = get_new_random_urlnr(16);
+        int urlnr = get_new_random_urlnr(15);
         /* printf("urlnr = %d\n", urlnr); // DEBUG */
 
         /* allocate memory dynamically */
@@ -207,9 +207,6 @@ char * get_url_ipservice()
         case 14:
                 strcpy(url, "http://ipecho.net/plain");
                 break;
-        case 15:
-                strcpy(url, "http://ifconfig.me/ip");
-                break;
         default:
                 fprintf(stderr, "Error: unknown urlnr.\n");
                 exit(EXIT_FAILURE);
@@ -244,9 +241,9 @@ void download_file(char *url, char *filepathnewdownload)
         curl_easy_setopt(curlsession, CURLOPT_HTTPGET, 1L);
         /* Write to ipfp */
         curl_easy_setopt(curlsession, CURLOPT_WRITEDATA, fpdownload);
-        /* default 300s, max. 25 seconds to connect */
-        curl_easy_setopt(curlsession, CURLOPT_CONNECTTIMEOUT, 25L);
-        /* default timeout is 0/never. change to 25 seconds */
+        /* default 300s, changed to max. 20 seconds to connect */
+        curl_easy_setopt(curlsession, CURLOPT_CONNECTTIMEOUT, 20L);
+        /* default timeout is 0/never. changed to 25 seconds */
         curl_easy_setopt(curlsession, CURLOPT_TIMEOUT, 25L);
         /* Never follow redirects. */
         curl_easy_setopt(curlsession, CURLOPT_FOLLOWLOCATION, 0L);
@@ -255,7 +252,7 @@ void download_file(char *url, char *filepathnewdownload)
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         /* Only allow http and https to be used. (default: CURLPROTO_ALL) */
         curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
-        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.3.1");
+        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.3.2");
         /* Perform the request, res will get the return code */
         CURLcode res;
         res = curl_easy_perform(curlsession);
