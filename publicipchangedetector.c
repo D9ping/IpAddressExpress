@@ -143,12 +143,12 @@ char * read_file_ipaddr(char *filepathip)
 */
 char * get_url_ipservice()
 {
-        int urlnr = get_new_random_urlnr(8);
+        int urlnr = get_new_random_urlnr(16);
         /* printf("urlnr = %d\n", urlnr); // DEBUG */
 
         /* allocate memory dynamically */
         char *url = NULL;
-        url = malloc(37 * sizeof(char)); // strlen("https://api.ipify.org/?format=text") => 36
+        url = malloc(40 * sizeof(char)); // strlen("https://secure.informaction.com/ipecho/") => 39
         if (url == NULL) {
                 fprintf(stderr, "Error: unable to allocate required memory.\n");
                 exit(EXIT_FAILURE);
@@ -171,15 +171,39 @@ char * get_url_ipservice()
         case 4:
                 strcpy(url, "https://v4.ident.me/");
                 break;
-        /* http services */
         case 5:
-                strcpy(url, "http://myip.dnsomatic.com/");
+                strcpy(url, "https://ipv4.icanhazip.com/");
                 break;
         case 6:
-                strcpy(url, "http://whatismyip.akamai.com/");
+                strcpy(url, "https://checkip.amazonaws.com/");
                 break;
         case 7:
+                strcpy(url, "https://bot.whatismyipaddress.com/");
+                break;
+        case 8:
+                strcpy(url, "https://secure.informaction.com/ipecho/");
+                break;
+        case 9:
+                strcpy(url, "https://l2.io/ip");
+                break;
+        case 10:
+                strcpy(url, "https://www.trackip.net/ip");
+                break;
+        /* http services */
+        case 11:
+                strcpy(url, "http://myip.dnsomatic.com/");
+                break;
+        case 12:
+                strcpy(url, "http://whatismyip.akamai.com/");
+                break;
+        case 13:
                 strcpy(url, "http://myexternalip.com/raw");
+                break;
+        case 14:
+                strcpy(url, "http://ipecho.net/plain");
+                break;
+        case 15:
+                strcpy(url, "http://ifconfig.me/ip");
                 break;
         default:
                 fprintf(stderr, "Error: unknown urlnr.\n");
@@ -226,7 +250,7 @@ void download_file(char *url, char *filepathnewdownload)
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         /* Only allow http and https to be used. (default: CURLPROTO_ALL) */
         curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
-        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.3.0");
+        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.3.1");
         /* Perform the request, res will get the return code */
         CURLcode res;
         res = curl_easy_perform(curlsession);
