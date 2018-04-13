@@ -16,9 +16,11 @@
  *
  ***************************************************************************/
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <curl/curl.h>
 #include <arpa/inet.h>
 
@@ -148,7 +150,7 @@ char * read_file_ipaddr(char *filepathip)
 */
 char * get_url_ipservice()
 {
-        int urlnr = get_new_random_urlnr(15);
+        int urlnr = get_new_random_urlnr(11);
         /* printf("urlnr = %d\n", urlnr); // DEBUG */
 
         /* allocate memory dynamically */
@@ -194,7 +196,7 @@ char * get_url_ipservice()
         case 10:
                 strcpy(url, "https://www.trackip.net/ip");
                 break;
-        /* http services */
+        /* http services
         case 11:
                 strcpy(url, "http://myip.dnsomatic.com/");
                 break;
@@ -207,10 +209,10 @@ char * get_url_ipservice()
         case 14:
                 strcpy(url, "http://ipecho.net/plain");
                 break;
+ */
         default:
                 fprintf(stderr, "Error: unknown urlnr.\n");
                 exit(EXIT_FAILURE);
-                break;
         }
 
         return url;
@@ -250,8 +252,8 @@ void download_file(char *url, char *filepathnewdownload)
         curl_easy_setopt(curlsession, CURLOPT_MAXREDIRS, 0L);
         /* resolve host name using IPv4-names only */
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-        /* Only allow http and https to be used. (default: CURLPROTO_ALL) */
-        curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        /* Only allow https to be used. (default: CURLPROTO_ALL) */
+        curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.3.2");
         /* Perform the request, res will get the return code */
         CURLcode res;
@@ -269,21 +271,34 @@ void download_file(char *url, char *filepathnewdownload)
 
         /* Get HTTP status code. */
         /* printf("Got HTTP status code: %ld.\n", http_code); // DEBUG */
-        if (http_code == 429L || http_code == 509L || http_code == 420L) {
-                // TODO: If HTTP status code 429 or 420 or 509 is returned then the currently used
-                // public ip service should be avoided for some time on next runs.
-                printf("Warn: rate limiting active. Use avoid the current public ip address service for some time.");
+        switch (http_code) {
+        case 420L:
+        case 429L:
+        case 503L:
+        case 509L:
+                // TODO: the currently used public ip service should be avoided for some time.
+                printf("Warn: rate limiting active. Avoid the current public ip address service for some time.");
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
                 exit(EXIT_FAILURE);
-        } else if (http_code >= 500L) {
-                printf("Warn: used public ip address service has an error.\n");
-        } else if (http_code == 410L) {
-                printf("Warn: the used public ip address service has quit. Never use this url again.\n");
-        } else if (http_code == 304) {
-                printf("Info: http Not Modified, our ip address is the same.\n");
-        } else if (http_code == 301L || http_code == 302L || http_code == 308L) {
-                printf("Warn: public IP address service changed url.\n");
+                break;
+        case 408L:
+        case 500L:
+        case 502L:
+        case 504L:
+                printf("Warn: used public ip address service has an error or other issue (http error: %ld).\n", http_code);
+        case 401L:
+        case 403L:
+        case 404L:
+        case 410L:
+                // TODO: added urlnr to list to never use again.
+                printf("Warn: the used public ip address service has quit or does not want automatic use.\n\
+ Never use this public ip service again.\n");
+        case 301L:
+        case 302L:
+        case 308L:
+                // TODO: added urlnr to list to never use again.
+                printf("Warn: public IP address service has changed url and is redirecting.\n");
                 printf("Incorrect url: %s\n", url);
         }
 
@@ -302,13 +317,59 @@ void download_file(char *url, char *filepathnewdownload)
 }
 
 
-int main(void)
+int main(int argc, char **argv)
 {
+        int secondsdelay = 0;
+        bool verbosemode = false;
+        bool argnumdelaysec = false;
+        for (int n = 1; n < argc; ++n) {
+                if (argnumdelaysec) {
+                        argnumdelaysec = false;
+                        // Check if argv[n] valid is integer
+                        int lenarg = strlen(argv[n]);
+                        bool validsecondsarg = true;
+                        for (int i = 0; i < lenarg; ++i) {
+                                if (!isdigit(argv[n][i])) {
+                                        fprintf(stderr, "Error: invalid number of seconds delay.\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                        }
+
+                        secondsdelay = atoi(argv[n]);
+                }
+
+                if (strcmp(argv[n], "-delay") == 0) {
+                        argnumdelaysec = true;
+                } else if (strcmp(argv[n], "-v") == 0) {
+                        verbosemode = true;
+                } else if (strcmp(argv[n], "-h") == 0) {
+                        printf("-delay 1-59 Delay the execution of the program with X number of seconds.\n");
+                        printf("-h          Print this help message.\n");
+                        printf("-v          Run in verbose mode, output what this program does.\n");
+                        printf("-version    Print version and exit.\n");
+                        exit(EXIT_SUCCESS);
+                } else if (strcmp(argv[n], "-version") == 0) {
+                        printf("PublicIpChangeDetector 0.3.2\n");
+                        exit(EXIT_SUCCESS);
+                }
+        }
+
+        if (secondsdelay > 0 && secondsdelay < 60) {
+                if (verbosemode) {
+                        printf("Delay %d seconds.\n", secondsdelay);
+                }
+
+                sleep(secondsdelay);
+        }
+
         char filepathipnow[] = "/tmp/ipnow.txt";
         char filepathipwas[] = "/tmp/ipwas.txt";
         char *url;
         url = get_url_ipservice();
-        /* printf("url = %s\n", url); // DEBUG */
+        if (verbosemode) {
+                printf("Use: %s for getting public IPv4 address.\n", url);
+        }
+
         download_file(url, filepathipnow);
         char *ipaddrstr;
         ipaddrstr = read_file_ipaddr(filepathipnow);
@@ -321,11 +382,14 @@ int main(void)
 
         char *previpaddrstr;
         if (access(filepathipwas, F_OK) == -1 ) {
-                printf("Info: first run. Confirm current ip result with other service.\n");
-                sleep(1);
-                char *url;
-                url = get_url_ipservice();
-                download_file(url, filepathipnow);
+                char *confirmurl;
+                confirmurl = get_url_ipservice();
+                if (verbosemode) {
+                        printf("First run. Confirm current public ip result.\n");
+                        printf("Use: %s to confirm public ip address.\n", confirmurl);
+                }
+
+                download_file(confirmurl, filepathipnow);
                 previpaddrstr = read_file_ipaddr(filepathipnow);
                 if (is_valid_ipv4_addr(previpaddrstr) != 1) {
                         free(previpaddrstr);
@@ -334,9 +398,11 @@ int main(void)
                         exit(EXIT_FAILURE);
                 }
 
-                if (strcmp(ipaddrstr, previpaddrstr) == 0) {
+                if (strcmp(ipaddrstr, previpaddrstr) != 0) {
                         fprintf(stderr, "Alert: one of the ip address services could have lied to us.\n\
  Try getting public ip again on next run.\n");
+                        fprintf(stderr, "IPv4: %s from %s.\n", ipaddrstr, url);
+                        fprintf(stderr, "IPv4: %s from %s.\n", previpaddrstr, confirmurl);
                         exit(EXIT_FAILURE);
                 }
         } else {
@@ -344,11 +410,12 @@ int main(void)
         }
 
         if (strcmp(ipaddrstr, previpaddrstr) != 0) {
-                printf("Change detected.\n");
-                printf("Ip service original url = %s\n", url);
-                sleep(1);
+                printf("Public ip change detected.\n");
                 url = get_url_ipservice();
-                printf("Ip service confirm url = %s\n", url);
+                if (verbosemode) {
+                        printf("Public ip service %s is used to confirm ip address\n", url);
+                }
+
                 download_file(url, filepathipnow);
                 char *confirmipaddrstr;
                 confirmipaddrstr = read_file_ipaddr(filepathipnow);
@@ -365,14 +432,21 @@ int main(void)
                         exit(EXIT_FAILURE);
                 }
 
-                printf("Launch update_ip_dns.sh to update public ip in dns zones to: %s\n", ipaddrstr);
+                if (verbosemode) {
+                        printf("Launch update_ip_dns.sh to update public ip in dns zones to: %s\n", ipaddrstr);
+                }
+
                 char cmdlaunchscript[] = "/bin/sh ./update_ip_dns.sh ";
                 strcat(cmdlaunchscript, ipaddrstr);
                 /* printf("cmdlaunchscript = [ %s ]\n", cmdlaunchscript); // DEBUG */
                 unsigned short exitcode = system(cmdlaunchscript);
                 if (exitcode != 0) {
-                        printf("Script returned error (exitcode %hu).\n", exitcode);
+                        fprintf(stderr, "Error: script returned error (exitcode %hu).\n", exitcode);
+                        // run again on script error?
+                        //exit(EXIT_FAILURE);
                 }
+        } else if (verbosemode) {
+                printf("No public ip change detected.\n");
         }
 
         /* Rename file */
