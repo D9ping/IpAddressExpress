@@ -38,6 +38,113 @@ int is_valid_ipv4_addr(char *ipv4addr)
 
 
 /**
+    Is an number with a number array.
+    @return 1 if it's within the array and 0 if the number not in the array.
+            And return 2 if array is filled with all maxurls urlnr's.
+*/
+int is_num_within_numarr(int *numarr, int maxurls, int needlenum)
+{
+        for (int i = 0; i < maxurls; ++i) {
+                if (numarr[i] == -1) {
+                        break;
+                } else {
+                        if (i == maxurls) {
+                                return 2;
+                        }
+                }
+
+                if (numarr[i] == needlenum) {
+                        return 1;
+                }
+        }
+
+        return 0;
+}
+
+
+/**
+    Write urlnr to file to avoid on next run.
+*/
+void write_avoid_urlnr(int urlnr)
+{
+        char filepathavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
+        FILE *fpavoidurlnrs;
+        fpavoidurlnrs = fopen(filepathavoidurlnrs, "a+");
+        if (fpavoidurlnrs == NULL) {
+                fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
+                fclose(fpavoidurlnrs);
+        }
+
+        fprintf(fpavoidurlnrs, "%s%d", ",", urlnr);
+        fclose(fpavoidurlnrs);
+}
+
+
+void get_list_avoid_urlnrs(int *avoidurlnrs)
+{
+        char filepathavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
+        if (access(filepathavoidurlnrs, F_OK) == -1) {
+                //printf("Warn: %s does not exists.\n", filepathavoidurlnrs);
+                return;
+        }
+
+        ssize_t maxlen;
+        FILE *fpavoidurlnrs;
+        fpavoidurlnrs = fopen(filepathavoidurlnrs, "r");
+        if (fpavoidurlnrs == NULL) {
+                fclose(fpavoidurlnrs);
+                fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
+                exit(EXIT_FAILURE);
+        }
+
+        const char SEPERATOR = ',';
+        size_t len = 0;
+        char *line;
+        maxlen = getline(&line, &len, fpavoidurlnrs) - 1;
+        fclose(fpavoidurlnrs);
+        int numurlnrs = 0;
+        int n = 0;
+        char nonumberchars[] = "   ";
+        char arrnumber[3] = {' ', ' ', ' '};
+        for (int i = 0; i <= maxlen; ++i) {
+                if (line[i] == SEPERATOR || i == maxlen) {
+                        n = 0;
+                        if (i >= 1 && strcmp(arrnumber, nonumberchars) != 0) {
+                                avoidurlnrs[numurlnrs] = atoi(arrnumber);
+                                ++numurlnrs;
+                                if (numurlnrs >= sizeof(avoidurlnrs)) {
+                                        //fprintf(stderr, "Maximum number of urlnr numbers to avoid reached.");
+                                        break;
+                                }
+                        }
+
+                        //arrnumber[] = nonumberchars;
+                        arrnumber[0] = ' ';
+                        arrnumber[1] = ' ';
+                        arrnumber[2] = ' ';
+                        continue;
+                }
+
+                if (n > 2) {
+                        fprintf(stderr, "Error: number too big.\n");
+                        arrnumber[0] = ' ';
+                        arrnumber[1] = ' ';
+                        arrnumber[2] = ' ';
+                        continue;
+                }
+
+                if (!isdigit(line[i])) {
+                        fprintf(stderr, "Error '%c' character is not a number.\n", line[i]);
+                        continue;
+                }
+
+                arrnumber[n] = line[i];
+                ++n;
+        }
+}
+
+
+/**
     Generate a secure random number between 0 and maxurls.
     Write the random number to disk and do not use the same value next time.
     @return A random number between 0 and maxurls.
@@ -73,20 +180,36 @@ int get_new_random_urlnr(int maxurls)
                 exit(EXIT_FAILURE);
         }
 
+        int avoidurlnrs[maxurls];
+        for (int i = 0; i < maxurls; ++i) {
+                avoidurlnrs[i] = -1;
+        }
+
+        get_list_avoid_urlnrs(avoidurlnrs);
         uint *seed = (uint *) malloc(32 * sizeof(uint));
         int resreadrnd = fread(seed, sizeof(uint), 32, rand_fd);
         srand(*seed);
         fclose(rand_fd);
-        /* Choose a new random urlnr between 0 and maxurls */
+        // Choose a new random urlnr between 0 and maxurls.
         int urlnr = (rand() % maxurls);
         uint tries = 0;
         const uint MAXTRIESRNDNUM = 2048;
-        while (urlnr == lasturlnr) {
-                int urlnr = (rand() % maxurls);
+
+        int res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
+        if (res == 2) {
+                fprintf(stderr, "Error: avoided all possible public ip url's to use.\n\
+There is no url to use.\n");
+                exit(EXIT_FAILURE);
+        }
+
+        while (urlnr == lasturlnr || res == 1) {
+                urlnr = (rand() % maxurls);
                 ++tries;
                 if (tries > MAXTRIESRNDNUM) {
                         exit(EXIT_FAILURE);
                 }
+
+                int res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
         }
 
         /* write urlnr */
@@ -95,6 +218,7 @@ int get_new_random_urlnr(int maxurls)
         fclose(lasturlnr_fd);
         return urlnr;
 }
+
 
 /**
     Strip everything in the character array from the new line character till the end
@@ -123,7 +247,7 @@ char * read_file_ipaddr(char *filepathip)
         FILE *fpfileip;
         fpfileip = fopen(filepathip, "r");
         if (fpfileip == NULL) {
-        fclose(fpfileip);
+                fclose(fpfileip);
                 fprintf(stderr, "Error: Could not get public ip now. Was not written.\n");
                 exit(EXIT_FAILURE);
         }
@@ -148,12 +272,10 @@ char * read_file_ipaddr(char *filepathip)
     But not the same url as the last random url.
     @return An random url to get the public ip address from.
 */
-char * get_url_ipservice()
+char * get_url_ipservice(int urlnr)
 {
-        int urlnr = get_new_random_urlnr(11);
         /* printf("urlnr = %d\n", urlnr); // DEBUG */
-
-        /* allocate memory dynamically */
+        // Allocate url memory dynamically.
         char *url = NULL;
         url = malloc(40 * sizeof(char)); // strlen("https://secure.informaction.com/ipecho/") => 39
         if (url == NULL) {
@@ -222,7 +344,7 @@ char * get_url_ipservice()
 /**
     Download all content from a url 
 */
-void download_file(char *url, char *filepathnewdownload)
+void download_file(char *url, int urlnr, char *filepathnewdownload)
 {
         FILE *fpdownload;
         // mode w+: truncates the file to zero length if it exists,
@@ -239,22 +361,22 @@ void download_file(char *url, char *filepathnewdownload)
         }
 
         curl_easy_setopt(curlsession, CURLOPT_URL, url);
-        /* use a GET to fetch this */
+        /* Use a GET to fetch this */
         curl_easy_setopt(curlsession, CURLOPT_HTTPGET, 1L);
-        /* Write to ipfp */
+        /* Write to fpdownload */
         curl_easy_setopt(curlsession, CURLOPT_WRITEDATA, fpdownload);
-        /* default 300s, changed to max. 20 seconds to connect */
+        /* Default 300s, changed to max. 20 seconds to connect */
         curl_easy_setopt(curlsession, CURLOPT_CONNECTTIMEOUT, 20L);
-        /* default timeout is 0/never. changed to 25 seconds */
+        /* Default timeout is 0/never. changed to 25 seconds */
         curl_easy_setopt(curlsession, CURLOPT_TIMEOUT, 25L);
         /* Never follow redirects. */
         curl_easy_setopt(curlsession, CURLOPT_FOLLOWLOCATION, 0L);
         curl_easy_setopt(curlsession, CURLOPT_MAXREDIRS, 0L);
-        /* resolve host name using IPv4-names only */
+        /* Resolve host name using IPv4-names only */
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         /* Only allow https to be used. (default: CURLPROTO_ALL) */
         curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
-        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.3.2");
+        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.0");
         /* Perform the request, res will get the return code */
         CURLcode res;
         res = curl_easy_perform(curlsession);
@@ -276,30 +398,36 @@ void download_file(char *url, char *filepathnewdownload)
         case 429L:
         case 503L:
         case 509L:
-                // TODO: the currently used public ip service should be avoided for some time.
+                
                 printf("Warn: rate limiting active. Avoid the current public ip address service for some time.");
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
+                // FIXME should not be avoid forever but for some time only.
+                write_avoid_urlnr(urlnr);
                 exit(EXIT_FAILURE);
-                break;
         case 408L:
         case 500L:
         case 502L:
         case 504L:
                 printf("Warn: used public ip address service has an error or other issue (http error: %ld).\n", http_code);
+                // FIXME should not be avoid forever but for some time only.
+                write_avoid_urlnr(urlnr);
+                break;
         case 401L:
         case 403L:
         case 404L:
         case 410L:
-                // TODO: added urlnr to list to never use again.
                 printf("Warn: the used public ip address service has quit or does not want automatic use.\n\
  Never use this public ip service again.\n");
+                write_avoid_urlnr(urlnr);
+                break;
         case 301L:
         case 302L:
         case 308L:
-                // TODO: added urlnr to list to never use again.
                 printf("Warn: public IP address service has changed url and is redirecting.\n");
                 printf("Incorrect url: %s\n", url);
+                write_avoid_urlnr(urlnr);
+                break;
         }
 
         /* Cleanup, should always happen. */
@@ -349,7 +477,7 @@ int main(int argc, char **argv)
                         printf("-version    Print version and exit.\n");
                         exit(EXIT_SUCCESS);
                 } else if (strcmp(argv[n], "-version") == 0) {
-                        printf("PublicIpChangeDetector 0.3.2\n");
+                        printf("PublicIpChangeDetector 0.4.0\n");
                         exit(EXIT_SUCCESS);
                 }
         }
@@ -364,13 +492,15 @@ int main(int argc, char **argv)
 
         char filepathipnow[] = "/tmp/ipnow.txt";
         char filepathipwas[] = "/tmp/ipwas.txt";
+        const int maxurls = 10;
+        int urlnr = get_new_random_urlnr(maxurls);
         char *url;
-        url = get_url_ipservice();
+        url = get_url_ipservice(urlnr);
         if (verbosemode) {
                 printf("Use: %s for getting public IPv4 address.\n", url);
         }
 
-        download_file(url, filepathipnow);
+        download_file(url, urlnr, filepathipnow);
         char *ipaddrstr;
         ipaddrstr = read_file_ipaddr(filepathipnow);
         if (is_valid_ipv4_addr(ipaddrstr) != 1) {
@@ -383,13 +513,14 @@ int main(int argc, char **argv)
         char *previpaddrstr;
         if (access(filepathipwas, F_OK) == -1 ) {
                 char *confirmurl;
-                confirmurl = get_url_ipservice();
+                urlnr = get_new_random_urlnr(maxurls);
+                confirmurl = get_url_ipservice(urlnr);
                 if (verbosemode) {
                         printf("First run. Confirm current public ip result.\n");
                         printf("Use: %s to confirm public ip address.\n", confirmurl);
                 }
 
-                download_file(confirmurl, filepathipnow);
+                download_file(confirmurl, urlnr, filepathipnow);
                 previpaddrstr = read_file_ipaddr(filepathipnow);
                 if (is_valid_ipv4_addr(previpaddrstr) != 1) {
                         free(previpaddrstr);
@@ -411,12 +542,13 @@ int main(int argc, char **argv)
 
         if (strcmp(ipaddrstr, previpaddrstr) != 0) {
                 printf("Public ip change detected.\n");
-                url = get_url_ipservice();
+                urlnr = get_new_random_urlnr(maxurls);
+                url = get_url_ipservice(urlnr);
                 if (verbosemode) {
                         printf("Public ip service %s is used to confirm ip address\n", url);
                 }
 
-                download_file(url, filepathipnow);
+                download_file(url, urlnr, filepathipnow);
                 char *confirmipaddrstr;
                 confirmipaddrstr = read_file_ipaddr(filepathipnow);
                 if (is_valid_ipv4_addr(confirmipaddrstr) != 1) {

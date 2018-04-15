@@ -1,5 +1,5 @@
 LDLIBS = -lcurl
-CFLAGS = -O2
+CFLAGS = -O3
 
 build:
 	gcc publicipchangedetector.c $(LDLIBS) $(CFLAGS) -o publicipchangedetector 
