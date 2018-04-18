@@ -42,7 +42,7 @@ int is_valid_ipv4_addr(char *ipv4addr)
     @return 1 if it's within the array and 0 if the number not in the array.
             And return 2 if array is filled with all maxurls urlnr's.
 */
-int is_num_within_numarr(int *numarr, int maxurls, int needlenum)
+int is_num_within_numarr(int numarr[], int maxurls, int needlenum)
 {
         for (int i = 0; i < maxurls; ++i) {
                 if (numarr[i] == -1) {
@@ -69,56 +69,71 @@ void write_avoid_urlnr(int urlnr)
 {
         char filepathavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
         FILE *fpavoidurlnrs;
+        int writecommas = 1;
+        if (access(filepathavoidurlnrs, F_OK) == -1) {
+                // filepathavoidurlnrs does not exist.
+                writecommas = 0;
+        }
+
         fpavoidurlnrs = fopen(filepathavoidurlnrs, "a+");
         if (fpavoidurlnrs == NULL) {
                 fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
                 fclose(fpavoidurlnrs);
         }
 
-        fprintf(fpavoidurlnrs, "%s%d", ",", urlnr);
+        if (writecommas == 0) {
+                fprintf(fpavoidurlnrs, "%s%d", ",", urlnr);
+        } else {
+                fprintf(fpavoidurlnrs, "%d", urlnr);
+        }
+
         fclose(fpavoidurlnrs);
 }
 
 
-void get_list_avoid_urlnrs(int *avoidurlnrs)
+/**
+    Get a pointer to the array with urlnr to avoid.
+ */
+void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
 {
-        char filepathavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
-        if (access(filepathavoidurlnrs, F_OK) == -1) {
-                //printf("Warn: %s does not exists.\n", filepathavoidurlnrs);
+        char filepathreadavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
+        if (access(filepathreadavoidurlnrs, F_OK) == -1) {
+                printf("Warn: %s does not exists.\n", filepathreadavoidurlnrs);
+                return;
+        } else if (verbosemode) {
+                printf("The %s file exists.\n", filepathreadavoidurlnrs);
+        }
+
+        FILE * fpreadavoidurlnrs;
+        fpreadavoidurlnrs = fopen(filepathreadavoidurlnrs, "r");
+        if (!fpreadavoidurlnrs) {
+                perror("fopen");
+                fclose(fpreadavoidurlnrs);
                 return;
         }
 
-        ssize_t maxlen;
-        FILE *fpavoidurlnrs;
-        fpavoidurlnrs = fopen(filepathavoidurlnrs, "r");
-        if (fpavoidurlnrs == NULL) {
-                fclose(fpavoidurlnrs);
-                fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
-                exit(EXIT_FAILURE);
-        }
-
         const char SEPERATOR = ',';
-        size_t len = 0;
-        char *line;
-        maxlen = getline(&line, &len, fpavoidurlnrs) - 1;
-        fclose(fpavoidurlnrs);
+        ssize_t filelength;
+        size_t readlen = 0;
+        char *lineavoidurlnrs;
+        filelength = getline(&lineavoidurlnrs, &readlen, fpreadavoidurlnrs) - 1;
+        fclose(fpreadavoidurlnrs);
         int numurlnrs = 0;
         int n = 0;
-        char nonumberchars[] = "   ";
+        const char nonumberchars[] = "   ";
         char arrnumber[3] = {' ', ' ', ' '};
-        for (int i = 0; i <= maxlen; ++i) {
-                if (line[i] == SEPERATOR || i == maxlen) {
+        for (int i = 0; i <= filelength; ++i) {
+                if (lineavoidurlnrs[i] == SEPERATOR || i == filelength) {
                         n = 0;
                         if (i >= 1 && strcmp(arrnumber, nonumberchars) != 0) {
                                 avoidurlnrs[numurlnrs] = atoi(arrnumber);
                                 ++numurlnrs;
-                                if (numurlnrs >= sizeof(avoidurlnrs)) {
-                                        //fprintf(stderr, "Maximum number of urlnr numbers to avoid reached.");
+                                if (numurlnrs >= maxurls) {
+                                        fprintf(stderr, "Maximum number of urlnr numbers to avoid reached.");
                                         break;
                                 }
                         }
 
-                        //arrnumber[] = nonumberchars;
                         arrnumber[0] = ' ';
                         arrnumber[1] = ' ';
                         arrnumber[2] = ' ';
@@ -133,12 +148,12 @@ void get_list_avoid_urlnrs(int *avoidurlnrs)
                         continue;
                 }
 
-                if (!isdigit(line[i])) {
-                        fprintf(stderr, "Error '%c' character is not a number.\n", line[i]);
+                if (!isdigit(lineavoidurlnrs[i])) {
+                        fprintf(stderr, "Error '%c' character is not a number.\n", lineavoidurlnrs[i]);
                         continue;
                 }
 
-                arrnumber[n] = line[i];
+                arrnumber[n] = lineavoidurlnrs[i];
                 ++n;
         }
 }
@@ -149,7 +164,7 @@ void get_list_avoid_urlnrs(int *avoidurlnrs)
     Write the random number to disk and do not use the same value next time.
     @return A random number between 0 and maxurls.
 */
-int get_new_random_urlnr(int maxurls)
+int get_new_random_urlnr(const int maxurls, bool verbosemode)
 {
         if (maxurls < 2) {
                 fprintf(stderr, "Error: maxurls needs to be 2 or higher.\n");
@@ -168,7 +183,9 @@ int get_new_random_urlnr(int maxurls)
                 bytesread = getline(&strlasturlnr, &len, lasturlnr_fd);
                 fclose(lasturlnr_fd);
                 lasturlnr = atoi(strlasturlnr);
-                /* printf("lasturlnr = %d\n", lasturlnr); // DEBUG */
+                if (verbosemode) {
+                        printf("read lasturlnr = %d\n", lasturlnr);
+                }
         }
 
         /* Initializes a random number generator using a seed from /dev/urandom */
@@ -180,12 +197,12 @@ int get_new_random_urlnr(int maxurls)
                 exit(EXIT_FAILURE);
         }
 
-        int avoidurlnrs[maxurls];
-        for (int i = 0; i < maxurls; ++i) {
-                avoidurlnrs[i] = -1;
+        int avoidurlnrs[10] = {-1}; // avoidurlnrs[maxurls]
+        if (verbosemode) {
+                printf("Get array with urlnumbers to avoid.\n");
         }
 
-        get_list_avoid_urlnrs(avoidurlnrs);
+        get_avoid_urlnrs(avoidurlnrs, maxurls, verbosemode);
         uint *seed = (uint *) malloc(32 * sizeof(uint));
         int resreadrnd = fread(seed, sizeof(uint), 32, rand_fd);
         srand(*seed);
@@ -193,7 +210,7 @@ int get_new_random_urlnr(int maxurls)
         // Choose a new random urlnr between 0 and maxurls.
         int urlnr = (rand() % maxurls);
         uint tries = 0;
-        const uint MAXTRIESRNDNUM = 2048;
+        const uint MAXTRIESRNDNUM = 512;
 
         int res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
         if (res == 2) {
@@ -209,13 +226,23 @@ There is no url to use.\n");
                         exit(EXIT_FAILURE);
                 }
 
-                int res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
+                res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
+                if (verbosemode) {
+                        printf("urlnr=%d, tries=%d, res=%d.\n", urlnr, tries, res);
+                        if (res != 1 && urlnr != lasturlnr) {
+                                printf("Found new urlnr = %d.\n", urlnr);
+                        }
+                }
         }
 
         /* write urlnr */
         lasturlnr_fd = fopen(filepathlasturlnr, "w+");
         fprintf(lasturlnr_fd, "%d\n", urlnr);
         fclose(lasturlnr_fd);
+        if (verbosemode) {
+                printf("new urlnr=%d\n", urlnr);
+        }
+
         return urlnr;
 }
 
@@ -272,9 +299,9 @@ char * read_file_ipaddr(char *filepathip)
     But not the same url as the last random url.
     @return An random url to get the public ip address from.
 */
-char * get_url_ipservice(int urlnr)
+char * get_url_ipservice(const int urlnr)
 {
-        /* printf("urlnr = %d\n", urlnr); // DEBUG */
+        printf("urlnr = %d\n", urlnr); // DEBUG 
         // Allocate url memory dynamically.
         char *url = NULL;
         url = malloc(40 * sizeof(char)); // strlen("https://secure.informaction.com/ipecho/") => 39
@@ -391,18 +418,18 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
         long http_code = 0;
         curl_easy_getinfo(curlsession, CURLINFO_RESPONSE_CODE, &http_code);
 
-        /* Get HTTP status code. */
+        // Get HTTP status code.
         /* printf("Got HTTP status code: %ld.\n", http_code); // DEBUG */
         switch (http_code) {
         case 420L:
         case 429L:
         case 503L:
         case 509L:
-                
-                printf("Warn: rate limiting active. Avoid the current public ip address service for some time.");
+                printf("Warn: rate limiting active.\
+ Avoid the current public ip address service for some time.");
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
-                // FIXME should not be avoid forever but for some time only.
+                // FIXME should not be avoid forever, but for some time only.
                 write_avoid_urlnr(urlnr);
                 exit(EXIT_FAILURE);
         case 408L:
@@ -410,7 +437,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
         case 502L:
         case 504L:
                 printf("Warn: used public ip address service has an error or other issue (http error: %ld).\n", http_code);
-                // FIXME should not be avoid forever but for some time only.
+                // FIXME should not be avoid forever, but for some time only.
                 write_avoid_urlnr(urlnr);
                 break;
         case 401L:
@@ -430,16 +457,15 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
                 break;
         }
 
-        /* Cleanup, should always happen. */
+        // Cleanup, should always happen.
         curl_easy_cleanup(curlsession);
-        /* Check the length of the downloaded file. */
+        // Check the length of the downloaded file.
         fseek(fpdownload, 0L, SEEK_END);
         unsigned long long int downloadedfilesize = ftell(fpdownload);
         /* printf("Downloaded file filesize: %llu bytes.\n", downloadedfilesize); // DEBUG */
-        /* Close file pointer */
         fclose(fpdownload);
         if (downloadedfilesize == 0) {
-                fprintf(stderr, "Error: downloaded empty file.\n");
+                fprintf(stderr, "Error: downloaded file is empty.\n");
                 exit(EXIT_FAILURE);
         }
 }
@@ -493,7 +519,11 @@ int main(int argc, char **argv)
         char filepathipnow[] = "/tmp/ipnow.txt";
         char filepathipwas[] = "/tmp/ipwas.txt";
         const int maxurls = 10;
-        int urlnr = get_new_random_urlnr(maxurls);
+        if (verbosemode) {
+                printf("Choice random urlnr.\n");
+        }
+
+        int urlnr = get_new_random_urlnr(maxurls, verbosemode);
         char *url;
         url = get_url_ipservice(urlnr);
         if (verbosemode) {
@@ -501,6 +531,10 @@ int main(int argc, char **argv)
         }
 
         download_file(url, urlnr, filepathipnow);
+        if (verbosemode) {
+                printf("Download finished.\n");
+        }
+
         char *ipaddrstr;
         ipaddrstr = read_file_ipaddr(filepathipnow);
         if (is_valid_ipv4_addr(ipaddrstr) != 1) {
@@ -513,7 +547,7 @@ int main(int argc, char **argv)
         char *previpaddrstr;
         if (access(filepathipwas, F_OK) == -1 ) {
                 char *confirmurl;
-                urlnr = get_new_random_urlnr(maxurls);
+                urlnr = get_new_random_urlnr(maxurls, verbosemode);
                 confirmurl = get_url_ipservice(urlnr);
                 if (verbosemode) {
                         printf("First run. Confirm current public ip result.\n");
@@ -542,7 +576,7 @@ int main(int argc, char **argv)
 
         if (strcmp(ipaddrstr, previpaddrstr) != 0) {
                 printf("Public ip change detected.\n");
-                urlnr = get_new_random_urlnr(maxurls);
+                urlnr = get_new_random_urlnr(maxurls, verbosemode);
                 url = get_url_ipservice(urlnr);
                 if (verbosemode) {
                         printf("Public ip service %s is used to confirm ip address\n", url);
