@@ -301,7 +301,7 @@ char * read_file_ipaddr(char *filepathip)
 */
 char * get_url_ipservice(const int urlnr)
 {
-        printf("urlnr = %d\n", urlnr); // DEBUG 
+        /* printf("urlnr = %d\n", urlnr); // DEBUG */
         // Allocate url memory dynamically.
         char *url = NULL;
         url = malloc(40 * sizeof(char)); // strlen("https://secure.informaction.com/ipecho/") => 39
