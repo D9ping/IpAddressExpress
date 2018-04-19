@@ -16,7 +16,7 @@ updatedns_hurricaneelectric() {
     local hostname=$1
     local domain=$2
     local password=$3
-    echo "Update DNS HurricaneElectric: $hostname.$domain to $ipaddr."
+    echo "Update DNS HurricaneElectric: $hostname.$domain to $4."
     if [ "$hostname" = "@" ];
     then
         curl -s --proto -all,https --tlsv1.2 --user-agent "$5" "https://$domain:$password@dyn.dns.he.net/nic/update?hostname=$domain&myip=$4" -o /dev/null 
@@ -31,7 +31,7 @@ updatedns_namecheap() {
     local hostname=$1
     local domain=$2
     local password=$3
-    echo "Update DNS NameCheap: $hostname.$domain to $ipaddr."
+    echo "Update DNS NameCheap: $hostname.$domain to $4."
     curl -s --proto -all,https --tlsv1.2 --user-agent "$5" "https://dynamicdns.park-your-domain.com/update?domain=$domain&password=$password&host=$hostname&ip=$4" --max-filesize 1048576 -o /dev/null 
 }
 
