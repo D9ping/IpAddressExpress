@@ -409,7 +409,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
         res = curl_easy_perform(curlsession);
         /* Check for errors */
         if (res != CURLE_OK) {
-                fprintf(stderr, "Error: %s\n", curl_easy_strerror(res));
+                fprintf(stderr, "Error: %s, url: %s\n", curl_easy_strerror(res), url);
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
                 exit(EXIT_FAILURE);
