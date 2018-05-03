@@ -1,12 +1,16 @@
 # PublicIpChangeDetector
-This C program efficiently requests randomly a HTTP(s) public IPv4 API. 
-Then it compares the result with the previous result to detect if the public IPv4 address has changed. 
-The change is confirmed with another randomly selected public https/http IPv4 API so if one public ip API lies, the lie is detected. 
+This C program efficiently request a randomly selected https public IPv4 address service 
+for figuring out the public IPv4 address of a server. Then it compares the result with the 
+previous result to detect if the public IPv4 address has changed. 
+If change is detected from previous request, the change is confirmed with another randomly
+ selected public IPv4 address service so if one public IPv4 service is lying, the lie is detected.
+By using multiple public IPv4 address services the current public IPv4 can be discovered
+ even when some public IPv4 services are down.
 If the public IPv4 address is valid and is different from last run the bash script: 
 update_ip_dns.sh is called with the new IPv4 address as parameter.
 
 
-### Compiling PublicIpChangeDetector
+### Compiling the PublicIpChangeDetector program
 1. Install the required packages.
 ```
 sudo apt-get install libcurl4-openssl-dev git-core
