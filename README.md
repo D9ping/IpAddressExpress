@@ -11,7 +11,7 @@ update_ip_dns.sh is called with the new IPv4 address as parameter.
 
 
 ### Flowchart of PublicIpChangeDetector operations ###
-This is how PublicIpChangeDetector can securely use a public IPv4 address service.
+This flowcharts show is how PublicIpChangeDetector works:
 ![flowchart](https://raw.githubusercontent.com/D9ping/PublicIpChangeDetector/master/docs/PublicIpChangeDetector_flowchart_v1.png?raw=true)
 
 
