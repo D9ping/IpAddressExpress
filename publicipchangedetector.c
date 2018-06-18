@@ -69,10 +69,10 @@ void write_avoid_urlnr(int urlnr)
 {
         char filepathavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
         FILE *fpavoidurlnrs;
-        int writecommas = 1;
+        bool writecomma = true;
         if (access(filepathavoidurlnrs, F_OK) == -1) {
                 // filepathavoidurlnrs does not exist.
-                writecommas = 0;
+                writecomma = false;
         }
 
         fpavoidurlnrs = fopen(filepathavoidurlnrs, "a+");
@@ -81,7 +81,7 @@ void write_avoid_urlnr(int urlnr)
                 fclose(fpavoidurlnrs);
         }
 
-        if (writecommas == 0) {
+        if (writecomma == true) {
                 fprintf(fpavoidurlnrs, "%s%d", ",", urlnr);
         } else {
                 fprintf(fpavoidurlnrs, "%d", urlnr);
@@ -123,7 +123,8 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
         const char nonumberchars[] = "   ";
         char arrnumber[3] = {' ', ' ', ' '};
         for (int i = 0; i <= filelength; ++i) {
-                if (lineavoidurlnrs[i] == SEPERATOR || i == filelength) {
+                if ((lineavoidurlnrs[i] == SEPERATOR) || 
+                    (i == filelength && lineavoidurlnrs[i] != SEPERATOR)) {
                         n = 0;
                         if (i >= 1 && strcmp(arrnumber, nonumberchars) != 0) {
                                 avoidurlnrs[numurlnrs] = atoi(arrnumber);
@@ -322,40 +323,37 @@ char * get_url_ipservice(const int urlnr)
                 strcpy(url, "https://wtfismyip.com/text");
                 break;
         case 3:
-                strcpy(url, "https://v4.ifconfig.co/ip");
-                break;
-        case 4:
                 strcpy(url, "https://v4.ident.me/");
                 break;
-        case 5:
+        case 4:
                 strcpy(url, "https://ipv4.icanhazip.com/");
                 break;
-        case 6:
+        case 5:
                 strcpy(url, "https://checkip.amazonaws.com/");
                 break;
-        case 7:
+        case 6:
                 strcpy(url, "https://bot.whatismyipaddress.com/");
                 break;
-        case 8:
+        case 7:
                 strcpy(url, "https://secure.informaction.com/ipecho/");
                 break;
-        case 9:
+        case 8:
                 strcpy(url, "https://l2.io/ip");
                 break;
-        case 10:
+        case 9:
                 strcpy(url, "https://www.trackip.net/ip");
                 break;
         /* http services
-        case 11:
+        case 10:
                 strcpy(url, "http://myip.dnsomatic.com/");
                 break;
-        case 12:
+        case 11:
                 strcpy(url, "http://whatismyip.akamai.com/");
                 break;
-        case 13:
+        case 12:
                 strcpy(url, "http://myexternalip.com/raw");
                 break;
-        case 14:
+        case 13:
                 strcpy(url, "http://ipecho.net/plain");
                 break;
  */
@@ -403,7 +401,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         /* Only allow https to be used. (default: CURLPROTO_ALL) */
         curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
-        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.0");
+        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.1");
         /* Perform the request, res will get the return code */
         CURLcode res;
         res = curl_easy_perform(curlsession);
@@ -412,6 +410,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
                 fprintf(stderr, "Error: %s, url: %s\n", curl_easy_strerror(res), url);
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
+                write_avoid_urlnr(urlnr);
                 exit(EXIT_FAILURE);
         }
 
@@ -436,7 +435,8 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
         case 500L:
         case 502L:
         case 504L:
-                printf("Warn: used public ip address service has an error or other issue (http error: %ld).\n", http_code);
+                printf("Warn: used public ip address service has an error or other issue\
+ (http error: %ld).\n", http_code);
                 // FIXME should not be avoid forever, but for some time only.
                 write_avoid_urlnr(urlnr);
                 break;
@@ -599,7 +599,8 @@ int main(int argc, char **argv)
                 }
 
                 if (verbosemode) {
-                        printf("Launch update_ip_dns.sh to update public ip in dns zones to: %s\n", ipaddrstr);
+                        printf("Launch update_ip_dns.sh to update public ip in dns zones\
+ to: %s\n", ipaddrstr);
                 }
 
                 char cmdlaunchscript[] = "/bin/sh ./update_ip_dns.sh ";
