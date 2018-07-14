@@ -401,7 +401,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         /* Only allow https to be used. (default: CURLPROTO_ALL) */
         curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
-        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.1");
+        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.2");
         /* Perform the request, res will get the return code */
         CURLcode res;
         res = curl_easy_perform(curlsession);
@@ -473,9 +473,13 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
 
 int main(int argc, char **argv)
 {
+        #define MAXLENPATHPOSTHOOK 1023
+        int argnposthook = -1;
+        bool retryposthook = false;
         int secondsdelay = 0;
         bool verbosemode = false;
         bool argnumdelaysec = false;
+        bool argposthook = false;
         for (int n = 1; n < argc; ++n) {
                 if (argnumdelaysec) {
                         argnumdelaysec = false;
@@ -490,17 +494,37 @@ int main(int argc, char **argv)
                         }
 
                         secondsdelay = atoi(argv[n]);
+                        continue;
+                } else if (argposthook) {
+                        argposthook = false;
+                        // Check length posthook
+                        if (strlen(argv[n]) > MAXLENPATHPOSTHOOK) {
+                                fprintf(stderr, "Error: posthook command too long.\n");
+                                exit(EXIT_FAILURE);
+                        }
+
+                        // For now, if multiple posthook's are provided override the command with last posthook command.
+                        argnposthook = n;
+                        continue;
                 }
 
-                if (strcmp(argv[n], "-delay") == 0) {
+                if (strcmp(argv[n], "-posthook") == 0) {
+                        argposthook = true;
+                } else if (strcmp(argv[n], "-retryposthook") == 0) {
+                        retryposthook = true;
+                } else if (strcmp(argv[n], "-delay") == 0) {
                         argnumdelaysec = true;
                 } else if (strcmp(argv[n], "-v") == 0) {
                         verbosemode = true;
                 } else if (strcmp(argv[n], "-h") == 0) {
-                        printf("-delay 1-59 Delay the execution of the program with X number of seconds.\n");
-                        printf("-h          Print this help message.\n");
-                        printf("-v          Run in verbose mode, output what this program does.\n");
-                        printf("-version    Print version and exit.\n");
+                        printf("-posthook      The script or program to run on public IPv4 address change.\n\
+               Put the command between quotes. Spaces in path are currently not supported.\n");
+                        printf("-retryposthook Rerun posthook on next run if posthook command \n\
+               did not return 0 as exit code.\n");
+                        printf("-delay 1-59    Delay the execution of this program with X number of seconds.\n");
+                        printf("-v             Run in verbose mode, output what this program does.\n");
+                        printf("-version       Print the version of this program and exit.\n");
+                        printf("-h             Print this help message.\n");
                         exit(EXIT_SUCCESS);
                 } else if (strcmp(argv[n], "-version") == 0) {
                         printf("PublicIpChangeDetector 0.4.0\n");
@@ -599,18 +623,26 @@ int main(int argc, char **argv)
                 }
 
                 if (verbosemode) {
-                        printf("Launch update_ip_dns.sh to update public ip in dns zones\
- to: %s\n", ipaddrstr);
+                        printf("Execute posthook command with \"%s\" as argument.\n", ipaddrstr);
                 }
 
-                char cmdlaunchscript[] = "/bin/sh ./update_ip_dns.sh ";
-                strcat(cmdlaunchscript, ipaddrstr);
-                /* printf("cmdlaunchscript = [ %s ]\n", cmdlaunchscript); // DEBUG */
-                unsigned short exitcode = system(cmdlaunchscript);
+                if (argnposthook < 1) {
+                        //cmdposthook[] = "/bin/sh ./update_ip_dns.sh ";
+                        fprintf(stderr, "Error: no posthook provided.\n");
+                        exit(EXIT_FAILURE);
+                }
+
+                char cmdposthook[MAXLENPATHPOSTHOOK + 1];
+                // TODO: path spaces issue
+                snprintf(cmdposthook, MAXLENPATHPOSTHOOK, "%s \"%s\"", argv[argnposthook], ipaddrstr);
+                /* printf("cmdposthook = [ %s ]\n", cmdposthook); // DEBUG */
+                unsigned short exitcode = system(cmdposthook);
                 if (exitcode != 0) {
                         fprintf(stderr, "Error: script returned error (exitcode %hu).\n", exitcode);
-                        // run again on script error?
-                        //exit(EXIT_FAILURE);
+                        if (retryposthook) {
+                                // Run posthook next time again on posthook error
+                                exit(EXIT_FAILURE);
+                        }
                 }
         } else if (verbosemode) {
                 printf("No public ip change detected.\n");
