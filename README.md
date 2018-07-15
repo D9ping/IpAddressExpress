@@ -20,7 +20,7 @@ If the public IPv4 address is valid and is different from last run the posthook 
 
 ### Flowchart of PublicIpChangeDetector operations ###
 This flowcharts show is how PublicIpChangeDetector works:
-![flowchart](https://raw.githubusercontent.com/D9ping/PublicIpChangeDetector/master/docs/PublicIpChangeDetector_flowchart_v1.png?raw=true)
+![flowchart](https://raw.githubusercontent.com/D9ping/PublicIpChangeDetector/master/docs/PublicIpChangeDetector_flowchart_v2.png?raw=true)
 
 
 ### Compiling PublicIpChangeDetector from source
