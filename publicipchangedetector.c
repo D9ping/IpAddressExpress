@@ -98,7 +98,10 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
 {
         char filepathreadavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
         if (access(filepathreadavoidurlnrs, F_OK) == -1) {
-                printf("Warn: %s does not exists.\n", filepathreadavoidurlnrs);
+                if (verbosemode) {
+                        printf("%s does not exists.\n", filepathreadavoidurlnrs);
+                }
+
                 return;
         } else if (verbosemode) {
                 printf("The %s file exists.\n", filepathreadavoidurlnrs);
@@ -216,7 +219,7 @@ int get_new_random_urlnr(const int maxurls, bool verbosemode)
         int res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
         if (res == 2) {
                 fprintf(stderr, "Error: avoided all possible public ip url's to use.\n\
-There is no url to use.\n");
+ There is no url to use.\n");
                 exit(EXIT_FAILURE);
         }
 
@@ -480,6 +483,7 @@ int main(int argc, char **argv)
         bool verbosemode = false;
         bool argnumdelaysec = false;
         bool argposthook = false;
+        bool showip = false;
         for (int n = 1; n < argc; ++n) {
                 if (argnumdelaysec) {
                         argnumdelaysec = false;
@@ -512,6 +516,8 @@ int main(int argc, char **argv)
                         argposthook = true;
                 } else if (strcmp(argv[n], "-retryposthook") == 0) {
                         retryposthook = true;
+                } else if (strcmp(argv[n], "-showip") == 0) {
+                        showip = true;
                 } else if (strcmp(argv[n], "-delay") == 0) {
                         argnumdelaysec = true;
                 } else if (strcmp(argv[n], "-v") == 0) {
@@ -521,13 +527,14 @@ int main(int argc, char **argv)
                Put the command between quotes. Spaces in path are currently not supported.\n");
                         printf("-retryposthook Rerun posthook on next run if posthook command \n\
                did not return 0 as exit code.\n");
+                        printf("-showip        Always print the currently confirmed public IPv4 address.\n");
                         printf("-delay 1-59    Delay the execution of this program with X number of seconds.\n");
                         printf("-v             Run in verbose mode, output what this program does.\n");
                         printf("-version       Print the version of this program and exit.\n");
                         printf("-h             Print this help message.\n");
                         exit(EXIT_SUCCESS);
                 } else if (strcmp(argv[n], "-version") == 0) {
-                        printf("PublicIpChangeDetector 0.4.0\n");
+                        printf("PublicIpChangeDetector 0.4.1\n");
                         exit(EXIT_SUCCESS);
                 }
         }
@@ -563,13 +570,14 @@ int main(int argc, char **argv)
         ipaddrstr = read_file_ipaddr(filepathipnow);
         if (is_valid_ipv4_addr(ipaddrstr) != 1) {
                 free(ipaddrstr);
-                fprintf(stderr, "Error: invalid IP(IPv4) address returned.\n");
+                fprintf(stderr, "Error: got invalid IP(IPv4) address from %s.\n", url);
                 unlink(filepathipnow);
                 exit(EXIT_FAILURE);
         }
 
         char *previpaddrstr;
         if (access(filepathipwas, F_OK) == -1 ) {
+                // PublicIpChangeDetector has not been runned before.
                 char *confirmurl;
                 urlnr = get_new_random_urlnr(maxurls, verbosemode);
                 confirmurl = get_url_ipservice(urlnr);
@@ -583,7 +591,7 @@ int main(int argc, char **argv)
                 if (is_valid_ipv4_addr(previpaddrstr) != 1) {
                         free(previpaddrstr);
                         unlink(filepathipnow);
-                        fprintf(stderr, "Error: invalid IP(IPv4) address returned.\n");
+                        fprintf(stderr, "Error: invalid IP(IPv4) address for first run confirmation from %s.\n", confirmurl);
                         exit(EXIT_FAILURE);
                 }
 
@@ -599,7 +607,10 @@ int main(int argc, char **argv)
         }
 
         if (strcmp(ipaddrstr, previpaddrstr) != 0) {
-                printf("Public ip change detected.\n");
+                if (verbosemode) {
+                        printf("Public ip change detected, ip address different from last run.\n");
+                }
+
                 urlnr = get_new_random_urlnr(maxurls, verbosemode);
                 url = get_url_ipservice(urlnr);
                 if (verbosemode) {
@@ -611,14 +622,22 @@ int main(int argc, char **argv)
                 confirmipaddrstr = read_file_ipaddr(filepathipnow);
                 if (is_valid_ipv4_addr(confirmipaddrstr) != 1) {
                         free(confirmipaddrstr);
-                        fprintf(stderr, "Error: invalid IP(IPv4) address returned from confirm public ip service.\n");
+                        fprintf(stderr, "Error: invalid IP(IPv4) address returned from %s as confirm public ip service.\n", url);
                         unlink(filepathipnow);
+                        if (showip) {
+                                printf("%s", ipaddrstr);
+                        }
+
                         exit(EXIT_FAILURE);
                 }
 
                 if (strcmp(confirmipaddrstr, previpaddrstr) == 0) {
                         fprintf(stderr, "Alert: the ip address service could have lied to us.\n\
  It's now unknown if public ip address has actually changed.\n");
+                        if (showip) {
+                                printf("%s", ipaddrstr);
+                        }
+
                         exit(EXIT_FAILURE);
                 }
 
@@ -640,19 +659,31 @@ int main(int argc, char **argv)
                 if (exitcode != 0) {
                         fprintf(stderr, "Error: script returned error (exitcode %hu).\n", exitcode);
                         if (retryposthook) {
+                                if (showip) {
+                                        printf("%s", ipaddrstr);
+                                }
+
                                 // Run posthook next time again on posthook error
                                 exit(EXIT_FAILURE);
                         }
                 }
         } else if (verbosemode) {
-                printf("No public ip change detected.\n");
+                printf("Public ip is the same as from last run.\n");
         }
 
         /* Rename file */
         int ret = rename(filepathipnow, filepathipwas);
         if (ret != 0) {
                 fprintf(stderr, "Error: unable to rename %s to %s.\n", filepathipnow, filepathipwas);
+                if (showip) {
+                        printf("%s", ipaddrstr);
+                }
+
                 exit(EXIT_FAILURE);
+        }
+
+        if (showip) {
+                printf("%s", ipaddrstr);
         }
 
         return EXIT_SUCCESS;
