@@ -145,6 +145,7 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
                 }
 
                 if (n > 2) {
+                        // Currently two digits is the highest urlnr.
                         fprintf(stderr, "Error: number too big.\n");
                         arrnumber[0] = ' ';
                         arrnumber[1] = ' ';
@@ -168,8 +169,12 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
     Write the random number to disk and do not use the same value next time.
     @return A random number between 0 and maxurls.
 */
-int get_new_random_urlnr(const int maxurls, bool verbosemode)
+int get_new_random_urlnr(int maxurls, bool verbosemode)
 {
+        if (verbosemode) {
+                printf("Choice random urlnr.\n");
+        }
+
         if (maxurls < 2) {
                 fprintf(stderr, "Error: maxurls needs to be 2 or higher.\n");
                 exit(EXIT_FAILURE);
@@ -201,7 +206,7 @@ int get_new_random_urlnr(const int maxurls, bool verbosemode)
                 exit(EXIT_FAILURE);
         }
 
-        int avoidurlnrs[10] = {-1}; // avoidurlnrs[maxurls]
+        int avoidurlnrs[14] = {-1}; // avoidurlnrs[maxurls]
         if (verbosemode) {
                 printf("Get array with urlnumbers to avoid.\n");
         }
@@ -244,7 +249,7 @@ int get_new_random_urlnr(const int maxurls, bool verbosemode)
         fprintf(lasturlnr_fd, "%d\n", urlnr);
         fclose(lasturlnr_fd);
         if (verbosemode) {
-                printf("new urlnr=%d\n", urlnr);
+                printf("new urlnr = %d\n", urlnr);
         }
 
         return urlnr;
@@ -346,7 +351,7 @@ char * get_url_ipservice(const int urlnr)
         case 9:
                 strcpy(url, "https://www.trackip.net/ip");
                 break;
-        /* http services
+        /* http services */
         case 10:
                 strcpy(url, "http://myip.dnsomatic.com/");
                 break;
@@ -359,7 +364,6 @@ char * get_url_ipservice(const int urlnr)
         case 13:
                 strcpy(url, "http://ipecho.net/plain");
                 break;
- */
         default:
                 fprintf(stderr, "Error: unknown urlnr.\n");
                 exit(EXIT_FAILURE);
@@ -372,7 +376,7 @@ char * get_url_ipservice(const int urlnr)
 /**
     Download all content from a url 
 */
-void download_file(char *url, int urlnr, char *filepathnewdownload)
+void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafehttp)
 {
         FILE *fpdownload;
         // mode w+: truncates the file to zero length if it exists,
@@ -402,8 +406,15 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
         curl_easy_setopt(curlsession, CURLOPT_MAXREDIRS, 0L);
         /* Resolve host name using IPv4-names only */
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-        /* Only allow https to be used. (default: CURLPROTO_ALL) */
-        curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        if (!unsafehttp) {
+                // Only allow https to be used.
+                curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        } else {
+                // Allow https and unsafe http.
+                curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, 
+                                 CURLPROTO_HTTPS | CURLPROTO_HTTP);
+        }
+
         curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.2");
         /* Perform the request, res will get the return code */
         CURLcode res;
@@ -454,8 +465,19 @@ void download_file(char *url, int urlnr, char *filepathnewdownload)
         case 301L:
         case 302L:
         case 308L:
-                printf("Warn: public IP address service has changed url and is redirecting.\n");
+                printf("Warn: public IP address service has changed url and is redirecting\
+ (http status code: %ld).\n", http_code);
                 printf("Incorrect url: %s\n", url);
+                char *followurl = NULL;
+                curl_easy_getinfo(curlsession, CURLINFO_REDIRECT_URL, &followurl);
+                if (followurl) {
+                        if (strcmp(followurl, url) != 0) {
+                                printf("Wants to redirect to: %s\n", followurl);
+                        } else {
+                                printf("Redirect to same page.\n");
+                        }
+                }
+
                 write_avoid_urlnr(urlnr);
                 break;
         }
@@ -484,6 +506,7 @@ int main(int argc, char **argv)
         bool argnumdelaysec = false;
         bool argposthook = false;
         bool showip = false;
+        bool unsafehttp = false;
         for (int n = 1; n < argc; ++n) {
                 if (argnumdelaysec) {
                         argnumdelaysec = false;
@@ -518,6 +541,8 @@ int main(int argc, char **argv)
                         retryposthook = true;
                 } else if (strcmp(argv[n], "-showip") == 0) {
                         showip = true;
+                } else if (strcmp(argv[n], "-unsafehttp") == 0) {
+                        unsafehttp = true;
                 } else if (strcmp(argv[n], "-delay") == 0) {
                         argnumdelaysec = true;
                 } else if (strcmp(argv[n], "-v") == 0) {
@@ -528,6 +553,7 @@ int main(int argc, char **argv)
                         printf("-retryposthook Rerun posthook on next run if posthook command \n\
                did not return 0 as exit code.\n");
                         printf("-showip        Always print the currently confirmed public IPv4 address.\n");
+                        printf("-unsafehttp    Allow the use of http public ip services, no TLS/SSL.\n");
                         printf("-delay 1-59    Delay the execution of this program with X number of seconds.\n");
                         printf("-v             Run in verbose mode, output what this program does.\n");
                         printf("-version       Print the version of this program and exit.\n");
@@ -549,9 +575,9 @@ int main(int argc, char **argv)
 
         char filepathipnow[] = "/tmp/ipnow.txt";
         char filepathipwas[] = "/tmp/ipwas.txt";
-        const int maxurls = 10;
-        if (verbosemode) {
-                printf("Choice random urlnr.\n");
+        int maxurls = 10;
+        if (unsafehttp) {
+                maxurls = 14;
         }
 
         int urlnr = get_new_random_urlnr(maxurls, verbosemode);
@@ -561,7 +587,7 @@ int main(int argc, char **argv)
                 printf("Use: %s for getting public IPv4 address.\n", url);
         }
 
-        download_file(url, urlnr, filepathipnow);
+        download_file(url, urlnr, filepathipnow, unsafehttp);
         if (verbosemode) {
                 printf("Download finished.\n");
         }
@@ -586,7 +612,7 @@ int main(int argc, char **argv)
                         printf("Use: %s to confirm public ip address.\n", confirmurl);
                 }
 
-                download_file(confirmurl, urlnr, filepathipnow);
+                download_file(confirmurl, urlnr, filepathipnow, unsafehttp);
                 previpaddrstr = read_file_ipaddr(filepathipnow);
                 if (is_valid_ipv4_addr(previpaddrstr) != 1) {
                         free(previpaddrstr);
@@ -617,7 +643,7 @@ int main(int argc, char **argv)
                         printf("Public ip service %s is used to confirm ip address\n", url);
                 }
 
-                download_file(url, urlnr, filepathipnow);
+                download_file(url, urlnr, filepathipnow, unsafehttp);
                 char *confirmipaddrstr;
                 confirmipaddrstr = read_file_ipaddr(filepathipnow);
                 if (is_valid_ipv4_addr(confirmipaddrstr) != 1) {
