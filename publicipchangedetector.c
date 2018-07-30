@@ -206,7 +206,7 @@ int get_new_random_urlnr(int maxurls, bool verbosemode)
                 exit(EXIT_FAILURE);
         }
 
-        int avoidurlnrs[14] = {-1}; // avoidurlnrs[maxurls]
+        int avoidurlnrs[16] = {-1}; // avoidurlnrs[maxurls]
         if (verbosemode) {
                 printf("Get array with urlnumbers to avoid.\n");
         }
@@ -351,18 +351,24 @@ char * get_url_ipservice(const int urlnr)
         case 9:
                 strcpy(url, "https://www.trackip.net/ip");
                 break;
-        /* http services */
         case 10:
+                strcpy(url, "https://ip4.seeip.org/");
+                break;
+        /* http services */
+        case 11:
                 strcpy(url, "http://myip.dnsomatic.com/");
                 break;
-        case 11:
+        case 12:
                 strcpy(url, "http://whatismyip.akamai.com/");
                 break;
-        case 12:
+        case 13:
                 strcpy(url, "http://myexternalip.com/raw");
                 break;
-        case 13:
+        case 14:
                 strcpy(url, "http://ipecho.net/plain");
+                break;
+        case 15:
+                strcpy(url, "http://plain-text-ip.com");
                 break;
         default:
                 fprintf(stderr, "Error: unknown urlnr.\n");
@@ -575,9 +581,9 @@ int main(int argc, char **argv)
 
         char filepathipnow[] = "/tmp/ipnow.txt";
         char filepathipwas[] = "/tmp/ipwas.txt";
-        int maxurls = 10;
+        int maxurls = 11;
         if (unsafehttp) {
-                maxurls = 14;
+                maxurls = 16;
         }
 
         int urlnr = get_new_random_urlnr(maxurls, verbosemode);
