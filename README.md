@@ -26,7 +26,7 @@ This flowcharts show is how PublicIpChangeDetector works:
 ### Compiling PublicIpChangeDetector from source
 Install the required packages.
 ```
-sudo apt-get install libcurl4-openssl-dev git-core
+sudo apt-get install build-essential libcurl4-openssl-dev git-core
 ```
  Get the PublicIpChangeDetector sourcecode in the folder /opt/ with:
 ```
@@ -43,9 +43,30 @@ make
 To use PublicIpChangeDetector for check public IPv4 address change of a server and update the
 dynamic dns entries with a bash script. Do the following:
 
-1. Edit the update_ip_dns.sh example script with your bash scripting for updating dynamic dns entries.
+1. Run ```crontab -e``` to edit your crontab. 
+2. Add the following line to run PublicIpChangeDetector every 10 minutes as current user.
+```
+*/10 * * * * /opt/PublicIpChangeDetector/publicipchangedetector --posthook "/bin/sh /opt/PublicIpChangeDetector/update_ip_dns.sh"
+``` 
+Edit the update_ip_dns.sh example bash script with your scripting for updating your dynamic dns entries.
 
-2. Run ```crontab -e``` to edit your crontab and add the following line to run PublicIpChangeDetector every 12 minutes.
-```
-*/12 * * * * /opt/PublicIpChangeDetector/publicipchangedetector --posthook "/bin/sh /opt/PublicIpChangeDetector/update_ip_dns.sh"
-```
+
+### Questions and Answers
+
+###### Do you have a precompiled binary?
+No, it's still in heavy development. 
+Besides compiling the binary yourself can create a more optimized binary for the processor you are using.
+
+###### What is the maximum downtime for my server if my dynamic public ip address changes?
+It depends on how often you run the publicipchangedetector program for detecting your public ip change.
+Also note that if a public ip address service lies to you it will take an extra publicipchangedetector run longer.
+And it also depends on how long the dns entries that needs to change are cached by dns servers.
+
+###### Should i run publicipchangedetector as often as possible?
+No, please be conservative on how often you run publicipchangedetector. Several public ip services are already serving a lot of requests.
+They don't like it you use too much bandwidth and they will ban/drop you or send you 403 error if you are make too many requests too quickly.
+
+###### What command-line arguments has publicipchangedetector?
+Run: /opt/PublicIpChangeDetector/publicipchangedetector -h  
+for help on the possible command-line arguments and there use.
+
