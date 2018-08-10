@@ -65,7 +65,7 @@ int is_num_within_numarr(int numarr[], int maxurls, int needlenum)
 /**
     Write urlnr to file to avoid on next run.
 */
-void write_avoid_urlnr(int urlnr)
+void write_avoid_urlnr(int urlnr, bool silentmode)
 {
         char filepathavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
         FILE *fpavoidurlnrs;
@@ -77,7 +77,10 @@ void write_avoid_urlnr(int urlnr)
 
         fpavoidurlnrs = fopen(filepathavoidurlnrs, "a+");
         if (fpavoidurlnrs == NULL) {
-                fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
+                if (!silentmode) {
+                        fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
+                }
+
                 fclose(fpavoidurlnrs);
         }
 
@@ -94,7 +97,7 @@ void write_avoid_urlnr(int urlnr)
 /**
     Get a pointer to the array with urlnr to avoid.
  */
-void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
+void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool silentmode)
 {
         char filepathreadavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
         if (access(filepathreadavoidurlnrs, F_OK) == -1) {
@@ -133,7 +136,10 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
                                 avoidurlnrs[numurlnrs] = atoi(arrnumber);
                                 ++numurlnrs;
                                 if (numurlnrs >= maxurls) {
-                                        fprintf(stderr, "Maximum number of urlnr numbers to avoid reached.");
+                                        if (!silentmode) {
+                                                fprintf(stderr, "Maximum number of urlnr numbers to avoid reached.");
+                                        }
+
                                         break;
                                 }
                         }
@@ -146,7 +152,10 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
 
                 if (n > 2) {
                         // Currently two digits is the highest urlnr.
-                        fprintf(stderr, "Error: number too big.\n");
+                        if (!silentmode) {
+                                fprintf(stderr, "Error: number too big.\n");
+                        }
+
                         arrnumber[0] = ' ';
                         arrnumber[1] = ' ';
                         arrnumber[2] = ' ';
@@ -154,7 +163,10 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
                 }
 
                 if (!isdigit(lineavoidurlnrs[i])) {
-                        fprintf(stderr, "Error '%c' character is not a number.\n", lineavoidurlnrs[i]);
+                        if (!silentmode) {
+                                fprintf(stderr, "Error '%c' character is not a number.\n", lineavoidurlnrs[i]);
+                        }
+
                         continue;
                 }
 
@@ -169,14 +181,17 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode)
     Write the random number to disk and do not use the same value next time.
     @return A random number between 0 and maxurls.
 */
-int get_new_random_urlnr(int maxurls, bool verbosemode)
+int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
 {
         if (verbosemode) {
                 printf("Choice random urlnr.\n");
         }
 
         if (maxurls < 2) {
-                fprintf(stderr, "Error: maxurls needs to be 2 or higher.\n");
+                if (!silentmode) {
+                        fprintf(stderr, "Error: maxurls needs to be 2 or higher.\n");
+                }
+
                 exit(EXIT_FAILURE);
         }
 
@@ -201,7 +216,10 @@ int get_new_random_urlnr(int maxurls, bool verbosemode)
         FILE * rand_fd;
         rand_fd = fopen("/dev/urandom", "r");
         if (rand_fd == 0) {
-                fprintf(stderr, "Error: could not open /dev/urandom\n");
+                if (!silentmode) {
+                        fprintf(stderr, "Error: could not open /dev/urandom\n");
+                }
+
                 fclose(rand_fd);
                 exit(EXIT_FAILURE);
         }
@@ -211,7 +229,7 @@ int get_new_random_urlnr(int maxurls, bool verbosemode)
                 printf("Get array with urlnumbers to avoid.\n");
         }
 
-        get_avoid_urlnrs(avoidurlnrs, maxurls, verbosemode);
+        get_avoid_urlnrs(avoidurlnrs, maxurls, verbosemode, silentmode);
         uint *seed = (uint *) malloc(32 * sizeof(uint));
         int resreadrnd = fread(seed, sizeof(uint), 32, rand_fd);
         srand(*seed);
@@ -223,8 +241,11 @@ int get_new_random_urlnr(int maxurls, bool verbosemode)
 
         int res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
         if (res == 2) {
-                fprintf(stderr, "Error: avoided all possible public ip url's to use.\n\
+                if (!silentmode) {
+                        fprintf(stderr, "Error: avoided all possible public ip url's to use.\n\
  There is no url to use.\n");
+                }
+
                 exit(EXIT_FAILURE);
         }
 
@@ -276,7 +297,7 @@ void strip_on_newlinechar(char *str, int strlength)
     Read a text file with ip address.
     @return A character array with the ip address without a newline character.
 */
-char * read_file_ipaddr(char *filepathip)
+char * read_file_ipaddr(char *filepathip, bool silentmode)
 {
         size_t len = 0;
         ssize_t bytesread;
@@ -284,7 +305,10 @@ char * read_file_ipaddr(char *filepathip)
         fpfileip = fopen(filepathip, "r");
         if (fpfileip == NULL) {
                 fclose(fpfileip);
-                fprintf(stderr, "Error: Could not get public ip now. Was not written.\n");
+                if (!silentmode) {
+                        fprintf(stderr, "Error: Could not get public ip now. Was not written.\n");
+                }
+
                 exit(EXIT_FAILURE);
         }
 
@@ -293,7 +317,10 @@ char * read_file_ipaddr(char *filepathip)
         // A hex text full out written IPv6 address is 34 characters +1 for null character.
         if (bytesread > 35) {
                 fclose(fpfileip);
-                fprintf(stderr, "Error: response server too long.\n");
+                if (!silentmode) {
+                        fprintf(stderr, "Error: response server too long.\n");
+                }
+
                 exit(EXIT_FAILURE);
         }
 
@@ -308,14 +335,17 @@ char * read_file_ipaddr(char *filepathip)
     But not the same url as the last random url.
     @return An random url to get the public ip address from.
 */
-char * get_url_ipservice(const int urlnr)
+char * get_url_ipservice(const int urlnr, bool silentmode)
 {
         /* printf("urlnr = %d\n", urlnr); // DEBUG */
         // Allocate url memory dynamically.
         char *url = NULL;
         url = malloc(40 * sizeof(char)); // strlen("https://secure.informaction.com/ipecho/") => 39
         if (url == NULL) {
-                fprintf(stderr, "Error: unable to allocate required memory.\n");
+                if (!silentmode) {
+                        fprintf(stderr, "Error: unable to allocate required memory.\n");
+                }
+
                 exit(EXIT_FAILURE);
         }
 
@@ -371,7 +401,10 @@ char * get_url_ipservice(const int urlnr)
                 strcpy(url, "http://plain-text-ip.com");
                 break;
         default:
-                fprintf(stderr, "Error: unknown urlnr.\n");
+                if (!silentmode) {
+                        fprintf(stderr, "Error: unknown urlnr.\n");
+                }
+
                 exit(EXIT_FAILURE);
         }
 
@@ -382,7 +415,7 @@ char * get_url_ipservice(const int urlnr)
 /**
     Download all content from a url 
 */
-void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafehttp)
+void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafehttp, bool silentmode)
 {
         FILE *fpdownload;
         // mode w+: truncates the file to zero length if it exists,
@@ -392,7 +425,10 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
         CURL *curlsession;
         curlsession = curl_easy_init();
         if (!curlsession || curlsession == NULL) {
-                fprintf(stderr, "Error: should not setup curl session.\n");
+                if (!silentmode) {
+                        fprintf(stderr, "Error: should not setup curl session.\n");
+                }
+
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
                 exit(EXIT_FAILURE);
@@ -421,16 +457,19 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
                                  CURLPROTO_HTTPS | CURLPROTO_HTTP);
         }
 
-        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.2");
+        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.3");
         /* Perform the request, res will get the return code */
         CURLcode res;
         res = curl_easy_perform(curlsession);
         /* Check for errors */
         if (res != CURLE_OK) {
-                fprintf(stderr, "Error: %s, url: %s\n", curl_easy_strerror(res), url);
+                if (!silentmode) {
+                        fprintf(stderr, "Error: %s, url: %s\n", curl_easy_strerror(res), url);
+                }
+
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
-                write_avoid_urlnr(urlnr);
+                write_avoid_urlnr(urlnr, silentmode);
                 exit(EXIT_FAILURE);
         }
 
@@ -449,7 +488,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
                 // FIXME should not be avoid forever, but for some time only.
-                write_avoid_urlnr(urlnr);
+                write_avoid_urlnr(urlnr, silentmode);
                 exit(EXIT_FAILURE);
         case 408L:
         case 500L:
@@ -458,7 +497,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
                 printf("Warn: used public ip address service has an error or other issue\
  (http error: %ld).\n", http_code);
                 // FIXME should not be avoid forever, but for some time only.
-                write_avoid_urlnr(urlnr);
+                write_avoid_urlnr(urlnr, silentmode);
                 break;
         case 401L:
         case 403L:
@@ -466,7 +505,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
         case 410L:
                 printf("Warn: the used public ip address service has quit or does not want automatic use.\n\
  Never use this public ip service again.\n");
-                write_avoid_urlnr(urlnr);
+                write_avoid_urlnr(urlnr, silentmode);
                 break;
         case 301L:
         case 302L:
@@ -484,7 +523,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
                         }
                 }
 
-                write_avoid_urlnr(urlnr);
+                write_avoid_urlnr(urlnr, silentmode);
                 break;
         }
 
@@ -496,7 +535,10 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
         /* printf("Downloaded file filesize: %llu bytes.\n", downloadedfilesize); // DEBUG */
         fclose(fpdownload);
         if (downloadedfilesize == 0) {
-                fprintf(stderr, "Error: downloaded file is empty.\n");
+                if (!silentmode) {
+                        fprintf(stderr, "Error: downloaded file is empty.\n");
+                }
+
                 exit(EXIT_FAILURE);
         }
 }
@@ -508,6 +550,7 @@ int main(int argc, char **argv)
         int argnposthook = -1;
         bool retryposthook = false;
         int secondsdelay = 0;
+        bool silentmode = false;
         bool verbosemode = false;
         bool argnumdelaysec = false;
         bool argposthook = false;
@@ -521,7 +564,10 @@ int main(int argc, char **argv)
                         bool validsecondsarg = true;
                         for (int i = 0; i < lenarg; ++i) {
                                 if (!isdigit(argv[n][i])) {
-                                        fprintf(stderr, "Error: invalid number of seconds delay.\n");
+                                        if (!silentmode) {
+                                                fprintf(stderr, "Error: invalid number of seconds delay.\n");
+                                        }
+
                                         exit(EXIT_FAILURE);
                                 }
                         }
@@ -532,7 +578,10 @@ int main(int argc, char **argv)
                         argposthook = false;
                         // Check length posthook
                         if (strlen(argv[n]) > MAXLENPATHPOSTHOOK) {
-                                fprintf(stderr, "Error: posthook command too long.\n");
+                                if (!silentmode) {
+                                        fprintf(stderr, "Error: posthook command too long.\n");
+                                }
+
                                 exit(EXIT_FAILURE);
                         }
 
@@ -551,6 +600,8 @@ int main(int argc, char **argv)
                         unsafehttp = true;
                 } else if (strcmp(argv[n], "-delay") == 0) {
                         argnumdelaysec = true;
+                } else if (strcmp(argv[n], "-silent") == 0) {
+                        silentmode = true;
                 } else if (strcmp(argv[n], "-v") == 0) {
                         verbosemode = true;
                 } else if (strcmp(argv[n], "-h") == 0) {
@@ -561,6 +612,7 @@ int main(int argc, char **argv)
                         printf("-showip        Always print the currently confirmed public IPv4 address.\n");
                         printf("-unsafehttp    Allow the use of http public ip services, no TLS/SSL.\n");
                         printf("-delay 1-59    Delay the execution of this program with X number of seconds.\n");
+                        printf("-silent        Don't print issues to stderr.\n");
                         printf("-v             Run in verbose mode, output what this program does.\n");
                         printf("-version       Print the version of this program and exit.\n");
                         printf("-h             Print this help message.\n");
@@ -586,23 +638,26 @@ int main(int argc, char **argv)
                 maxurls = 16;
         }
 
-        int urlnr = get_new_random_urlnr(maxurls, verbosemode);
+        int urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
         char *url;
-        url = get_url_ipservice(urlnr);
+        url = get_url_ipservice(urlnr, silentmode);
         if (verbosemode) {
                 printf("Use: %s for getting public IPv4 address.\n", url);
         }
 
-        download_file(url, urlnr, filepathipnow, unsafehttp);
+        download_file(url, urlnr, filepathipnow, unsafehttp, silentmode);
         if (verbosemode) {
                 printf("Download finished.\n");
         }
 
         char *ipaddrstr;
-        ipaddrstr = read_file_ipaddr(filepathipnow);
+        ipaddrstr = read_file_ipaddr(filepathipnow, silentmode);
         if (is_valid_ipv4_addr(ipaddrstr) != 1) {
                 free(ipaddrstr);
-                fprintf(stderr, "Error: got invalid IP(IPv4) address from %s.\n", url);
+                if (!silentmode) {
+                        fprintf(stderr, "Error: got invalid IP(IPv4) address from %s.\n", url);
+                }
+
                 unlink(filepathipnow);
                 exit(EXIT_FAILURE);
         }
@@ -611,31 +666,37 @@ int main(int argc, char **argv)
         if (access(filepathipwas, F_OK) == -1 ) {
                 // PublicIpChangeDetector has not been runned before.
                 char *confirmurl;
-                urlnr = get_new_random_urlnr(maxurls, verbosemode);
-                confirmurl = get_url_ipservice(urlnr);
+                urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
+                confirmurl = get_url_ipservice(urlnr, silentmode);
                 if (verbosemode) {
                         printf("First run. Confirm current public ip result.\n");
                         printf("Use: %s to confirm public ip address.\n", confirmurl);
                 }
 
-                download_file(confirmurl, urlnr, filepathipnow, unsafehttp);
-                previpaddrstr = read_file_ipaddr(filepathipnow);
+                download_file(confirmurl, urlnr, filepathipnow, unsafehttp, silentmode);
+                previpaddrstr = read_file_ipaddr(filepathipnow, silentmode);
                 if (is_valid_ipv4_addr(previpaddrstr) != 1) {
                         free(previpaddrstr);
                         unlink(filepathipnow);
-                        fprintf(stderr, "Error: invalid IP(IPv4) address for first run confirmation from %s.\n", confirmurl);
+                        if (!silentmode) {
+                                fprintf(stderr, "Error: invalid IP(IPv4) address for first run confirmation from %s.\n", confirmurl);
+                        }
+
                         exit(EXIT_FAILURE);
                 }
 
                 if (strcmp(ipaddrstr, previpaddrstr) != 0) {
-                        fprintf(stderr, "Alert: one of the ip address services could have lied to us.\n\
+                        if (!silentmode) {
+                                fprintf(stderr, "Alert: one of the ip address services could have lied to us.\n\
  Try getting public ip again on next run.\n");
-                        fprintf(stderr, "IPv4: %s from %s.\n", ipaddrstr, url);
-                        fprintf(stderr, "IPv4: %s from %s.\n", previpaddrstr, confirmurl);
+                                fprintf(stderr, "IPv4: %s from %s.\n", ipaddrstr, url);
+                                fprintf(stderr, "IPv4: %s from %s.\n", previpaddrstr, confirmurl);
+                        }
+
                         exit(EXIT_FAILURE);
                 }
         } else {
-                previpaddrstr = read_file_ipaddr(filepathipwas);
+                previpaddrstr = read_file_ipaddr(filepathipwas, silentmode);
         }
 
         if (strcmp(ipaddrstr, previpaddrstr) != 0) {
@@ -643,18 +704,21 @@ int main(int argc, char **argv)
                         printf("Public ip change detected, ip address different from last run.\n");
                 }
 
-                urlnr = get_new_random_urlnr(maxurls, verbosemode);
-                url = get_url_ipservice(urlnr);
+                urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
+                url = get_url_ipservice(urlnr, silentmode);
                 if (verbosemode) {
                         printf("Public ip service %s is used to confirm ip address\n", url);
                 }
 
-                download_file(url, urlnr, filepathipnow, unsafehttp);
+                download_file(url, urlnr, filepathipnow, unsafehttp, silentmode);
                 char *confirmipaddrstr;
-                confirmipaddrstr = read_file_ipaddr(filepathipnow);
+                confirmipaddrstr = read_file_ipaddr(filepathipnow, silentmode);
                 if (is_valid_ipv4_addr(confirmipaddrstr) != 1) {
                         free(confirmipaddrstr);
-                        fprintf(stderr, "Error: invalid IP(IPv4) address returned from %s as confirm public ip service.\n", url);
+                        if (!silentmode) {
+                                fprintf(stderr, "Error: invalid IP(IPv4) address returned from %s as confirm public ip service.\n", url);
+                        }
+
                         unlink(filepathipnow);
                         if (showip) {
                                 printf("%s", ipaddrstr);
@@ -664,8 +728,11 @@ int main(int argc, char **argv)
                 }
 
                 if (strcmp(confirmipaddrstr, previpaddrstr) == 0) {
-                        fprintf(stderr, "Alert: the ip address service could have lied to us.\n\
+                        if (!silentmode) {
+                                fprintf(stderr, "Alert: the ip address service could have lied to us.\n\
  It's now unknown if public ip address has actually changed.\n");
+                        }
+
                         if (showip) {
                                 printf("%s", ipaddrstr);
                         }
@@ -679,7 +746,10 @@ int main(int argc, char **argv)
 
                 if (argnposthook < 1) {
                         //cmdposthook[] = "/bin/sh ./update_ip_dns.sh ";
-                        fprintf(stderr, "Error: no posthook provided.\n");
+                        if (!silentmode) {
+                                fprintf(stderr, "Error: no posthook provided.\n");
+                        }
+
                         exit(EXIT_FAILURE);
                 }
 
@@ -689,7 +759,10 @@ int main(int argc, char **argv)
                 /* printf("cmdposthook = [ %s ]\n", cmdposthook); // DEBUG */
                 unsigned short exitcode = system(cmdposthook);
                 if (exitcode != 0) {
-                        fprintf(stderr, "Error: script returned error (exitcode %hu).\n", exitcode);
+                        if (!silentmode) {
+                                fprintf(stderr, "Error: script returned error (exitcode %hu).\n", exitcode);
+                        }
+
                         if (retryposthook) {
                                 if (showip) {
                                         printf("%s", ipaddrstr);
