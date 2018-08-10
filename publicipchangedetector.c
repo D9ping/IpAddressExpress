@@ -24,7 +24,8 @@
 #include <curl/curl.h>
 #include <arpa/inet.h>
 
-
+#define SEED_LENGTH 32
+#define IPV6_TEXT_LENGTH 34
 /**
     Verify that a IPv4 address is valid by using inet_pton.
     @return 1 if character array is valid IPv4 address.
@@ -84,6 +85,12 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
                 fclose(fpavoidurlnrs);
         }
 
+        fseek(fpavoidurlnrs, 0L, SEEK_END);
+        long filesizeavoidurlnrs = ftell(fpavoidurlnrs);
+        if (filesizeavoidurlnrs == 0L) {
+            writecomma = false;
+        }
+
         if (writecomma == true) {
                 fprintf(fpavoidurlnrs, "%s%d", ",", urlnr);
         } else {
@@ -128,7 +135,7 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool sil
         int n = 0;
         const char nonumberchars[] = "   ";
         char arrnumber[3] = {' ', ' ', ' '};
-        for (int i = 0; i <= filelength; ++i) {
+        for (uint i = 0; i <= filelength; ++i) {
                 if ((lineavoidurlnrs[i] == SEPERATOR) || 
                     (i == filelength && lineavoidurlnrs[i] != SEPERATOR)) {
                         n = 0;
@@ -230,14 +237,15 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
         }
 
         get_avoid_urlnrs(avoidurlnrs, maxurls, verbosemode, silentmode);
-        uint *seed = (uint *) malloc(32 * sizeof(uint));
-        int resreadrnd = fread(seed, sizeof(uint), 32, rand_fd);
+        // TODO: construct: availableurlnrs
+        uint *seed = (uint *) malloc(SEED_LENGTH * sizeof(uint));
+        int resreadrnd = fread(seed, sizeof(uint), SEED_LENGTH, rand_fd);
         srand(*seed);
         fclose(rand_fd);
         // Choose a new random urlnr between 0 and maxurls.
         int urlnr = (rand() % maxurls);
         uint tries = 0;
-        const uint MAXTRIESRNDNUM = 512;
+        uint maxtries = maxurls * 2;
 
         int res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
         if (res == 2) {
@@ -252,7 +260,7 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
         while (urlnr == lasturlnr || res == 1) {
                 urlnr = (rand() % maxurls);
                 ++tries;
-                if (tries > MAXTRIESRNDNUM) {
+                if (tries > maxtries) {
                         exit(EXIT_FAILURE);
                 }
 
@@ -315,7 +323,7 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
         char *ipaddrstr;
         bytesread = getline(&ipaddrstr, &len, fpfileip);
         // A hex text full out written IPv6 address is 34 characters +1 for null character.
-        if (bytesread > 35) {
+        if (bytesread > IPV6_TEXT_LENGTH) {
                 fclose(fpfileip);
                 if (!silentmode) {
                         fprintf(stderr, "Error: response server too long.\n");
@@ -600,7 +608,7 @@ int main(int argc, char **argv)
                         unsafehttp = true;
                 } else if (strcmp(argv[n], "-delay") == 0) {
                         argnumdelaysec = true;
-                } else if (strcmp(argv[n], "-silent") == 0) {
+                } else if (strcmp(argv[n], "-failsilent") == 0) {
                         silentmode = true;
                 } else if (strcmp(argv[n], "-v") == 0) {
                         verbosemode = true;
@@ -612,7 +620,7 @@ int main(int argc, char **argv)
                         printf("-showip        Always print the currently confirmed public IPv4 address.\n");
                         printf("-unsafehttp    Allow the use of http public ip services, no TLS/SSL.\n");
                         printf("-delay 1-59    Delay the execution of this program with X number of seconds.\n");
-                        printf("-silent        Don't print issues to stderr.\n");
+                        printf("-failsilent    Don't print issues to stderr.\n");
                         printf("-v             Run in verbose mode, output what this program does.\n");
                         printf("-version       Print the version of this program and exit.\n");
                         printf("-h             Print this help message.\n");
@@ -620,6 +628,8 @@ int main(int argc, char **argv)
                 } else if (strcmp(argv[n], "-version") == 0) {
                         printf("PublicIpChangeDetector 0.4.1\n");
                         exit(EXIT_SUCCESS);
+                } else if (!silentmode) {
+                        fprintf(stderr, "Ignore unknown argument \"%s\".\n", argv[n]);
                 }
         }
 
@@ -635,8 +645,12 @@ int main(int argc, char **argv)
         char filepathipwas[] = "/tmp/ipwas.txt";
         int maxurls = 11;
         if (unsafehttp) {
-                maxurls = 16;
+            maxurls = 16;
         }
+
+        //if (verbosemode) {
+        //        printf("%d url's to possible use.\n", maxurls);
+        //}
 
         int urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
         char *url;
