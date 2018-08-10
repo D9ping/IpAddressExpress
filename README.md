@@ -2,12 +2,14 @@
 
 ### Why use PublicIpChangeDetector?
 Compared to shell scripts for figuring out the public IPv4 address PublicIpChangeDetector will more 
-securely and more reliable detect the current IPv4 address of a computer on an internal network.
+securely and more reliable detect the current public IPv4 address.
 It's more secure because it does not require to trust a single server and uses https for tamper protection.
-PublicIpChangeDetector requires consensus between two randomly selected public IPv4 address HTTPS services.
+What makes PublicIpChangeDetector more securly is that it requires consensus between two randomly selected public IPv4 address web services.
+Thus it's not possible for a single public IPv4 address web service to fool the computer
+ incorrectly thinking the public ip address has been changed.
+And by using multiple public IPv4 address web services the current public IPv4 can be discovered after some time
+ even when some public IPv4 web services are down.
 PublicIpChangeDetector is written in C so it executes fast and efficiently.
-By using multiple public IPv4 address https services the current public IPv4 can be discovered after some time
- even when some public IPv4 https services are down.
  
 ### How PublicIpChangeDetector detects public IPv4 address change?
 PublicIpChangeDetector randomly selects a https public IPv4 address service from a list 
@@ -15,7 +17,7 @@ of known https public IPv4 address services for figuring out the public IPv4 add
 It then compares the result with the previous result to detect if the public IPv4 address has changed. 
 If change is detected from previous request, the change is confirmed with another randomly
  selected public IPv4 address https service so if one public IPv4 https service is lying, the lie is detected.
-If the public IPv4 address is valid and is different from last run the posthook command execute
+If the public IPv4 address is valid and is different from last run the posthook command is executed
  with the new IPv4 address as first commandline parameter.
 
 ### Flowchart of PublicIpChangeDetector operations ###
@@ -54,8 +56,8 @@ Edit the update_ip_dns.sh example bash script with your scripting for updating y
 ### Questions and Answers
 
 ###### Do you have a precompiled binary?
-No, it's still in heavy development. 
-Besides compiling the binary yourself can create a more optimized binary for the processor you are using.
+No, it's still in development. 
+Compiling the binary yourself can create a more optimized binary for the processor you are using.
 
 ###### What is the maximum downtime for my server if my dynamic public ip address changes?
 It depends on how often you run the publicipchangedetector program for detecting your public ip change.
