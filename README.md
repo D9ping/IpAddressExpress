@@ -1,5 +1,6 @@
 # PublicIpChangeDetector
-
+[<img src="https://img.shields.io/github/issues/D9ping/PublicIpChangeDetector.svg?style=flat-square" alt="Open issues" />](https://github.com/D9ping/PublicIpChangeDetector/issues) 
+[![Build Status](https://travis-ci.org/D9ping/PublicIpChangeDetector.svg?branch=master)](https://travis-ci.org/D9ping/PublicIpChangeDetector)
 ### Why use PublicIpChangeDetector?
 Compared to shell scripts for figuring out the public IPv4 address PublicIpChangeDetector will more 
 securely and more reliable detect the current public IPv4 address.
