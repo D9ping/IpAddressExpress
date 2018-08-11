@@ -649,7 +649,7 @@ int main(int argc, char **argv)
         char filepathipwas[] = "/tmp/ipwas.txt";
         int maxurls = 11;
         if (unsafehttp) {
-            maxurls = 16;
+                maxurls = 16;
         }
 
         //if (verbosemode) {

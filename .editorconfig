@@ -1,0 +1,20 @@
+# EditorConfig, for info see: https://editorconfig.org/
+root = true
+
+[*]
+insert_final_newline = true
+
+# 8 spaces indentation for all C files.
+[*.c]
+indent_style = space
+indent_size = 8
+
+# Required tab indentation for Makefile.
+[Makefile]
+indent_style = tab
+
+# For Continuous Integration.
+[.travis.yml]
+indent_style = space
+indent_size = 2
+
