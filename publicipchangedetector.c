@@ -10,7 +10,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with PublicIpChangeDetector. If not, see <http://www.gnu.org/licenses/>.
  *
@@ -26,6 +26,9 @@
 
 #define SEED_LENGTH 32
 #define IPV6_TEXT_LENGTH 34
+
+typedef unsigned int            uint;
+
 /**
     Verify that a IPv4 address is valid by using inet_pton.
     @return 1 if character array is valid IPv4 address.
@@ -129,7 +132,8 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool sil
         ssize_t filelength;
         size_t readlen = 0;
         char *lineavoidurlnrs;
-        filelength = getline(&lineavoidurlnrs, &readlen, fpreadavoidurlnrs) - 1;
+        //  getline() should be from the GNU provided extension from stdio.h.
+        filelength = getline(&lineavoidurlnrs, &readlen, fpreadavoidurlnrs) - 1;  
         fclose(fpreadavoidurlnrs);
         int numurlnrs = 0;
         int n = 0;
