@@ -56,9 +56,12 @@ Edit the update_ip_dns.sh example bash script with your scripting for updating y
 
 ### Questions and Answers
 
-###### Do you have a precompiled binary?
-No, it's still in development. 
-Compiling the binary yourself can create a more optimized binary for the processor you are using.
+###### Why not ask my router for my public ip address?
+Well technically you could get the public IPv4 address from your router.
+But sadly every router manufacturer has a different (web)interface for providing this information.
+And often the information is secured by a login screen. 
+PublicIpChangeDetector does not rely on the router and because of this just works everywhere where there is internet access.
+
 
 ###### What is the maximum downtime for my server if my dynamic public ip address changes?
 It depends on how often you run the publicipchangedetector program for detecting your public ip change.
@@ -69,7 +72,13 @@ And it also depends on how long the dns entries that needs to change are cached 
 No, please be conservative on how often you run publicipchangedetector. Several public ip services are already serving a lot of requests.
 They don't like it you use too much bandwidth and they will ban/drop you or send you 403 error if you are make too many requests too quickly.
 
-###### What command-line arguments has publicipchangedetector?
-Run: /opt/PublicIpChangeDetector/publicipchangedetector -h  
-for help on the possible command-line arguments and there use.
+###### How do i get the current public IPv4 address from commandline?
+Run publicipchangedetector with the -showip argument to always print the current public ip address.
+
+###### What command-line arguments can i use?
+Run publicipchangedetector with the -h argumemt for help on all the possible command-line arguments.
+
+###### Do you have a precompiled binary?
+No, PublicIpChangeDetector is still in development. 
+Compiling the binary yourself can create a more optimized binary for the processor you are using.
 
