@@ -15,6 +15,7 @@
  * along with PublicIpChangeDetector. If not, see <http://www.gnu.org/licenses/>.
  *
  ***************************************************************************/
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -132,7 +133,6 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool sil
         ssize_t filelength;
         size_t readlen = 0;
         char *lineavoidurlnrs;
-        //  getline() should be from the GNU provided extension from stdio.h.
         filelength = getline(&lineavoidurlnrs, &readlen, fpreadavoidurlnrs) - 1;  
         fclose(fpreadavoidurlnrs);
         int numurlnrs = 0;
