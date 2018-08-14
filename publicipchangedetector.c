@@ -27,7 +27,7 @@
 
 #define SEED_LENGTH 32
 #define IPV6_TEXT_LENGTH 34
-
+#define VERSION "0.4.4"
 typedef unsigned int            uint;
 
 /**
@@ -270,7 +270,6 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
 
                 res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
                 if (verbosemode) {
-                        printf("urlnr=%d, tries=%d, res=%d.\n", urlnr, tries, res);
                         if (res != 1 && urlnr != lasturlnr) {
                                 printf("Found new urlnr = %d.\n", urlnr);
                         }
@@ -469,7 +468,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
                                  CURLPROTO_HTTPS | CURLPROTO_HTTP);
         }
 
-        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector/0.4.3");
+        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector");
         /* Perform the request, res will get the return code */
         CURLcode res;
         res = curl_easy_perform(curlsession);
@@ -602,35 +601,35 @@ int main(int argc, char **argv)
                         continue;
                 }
 
-                if (strcmp(argv[n], "-posthook") == 0) {
+                if (strcmp(argv[n], "--posthook") == 0) {
                         argposthook = true;
-                } else if (strcmp(argv[n], "-retryposthook") == 0) {
+                } else if (strcmp(argv[n], "--retryposthook") == 0) {
                         retryposthook = true;
-                } else if (strcmp(argv[n], "-showip") == 0) {
+                } else if (strcmp(argv[n], "--showip") == 0) {
                         showip = true;
-                } else if (strcmp(argv[n], "-unsafehttp") == 0) {
+                } else if (strcmp(argv[n], "--unsafehttp") == 0) {
                         unsafehttp = true;
-                } else if (strcmp(argv[n], "-delay") == 0) {
+                } else if (strcmp(argv[n], "--delay") == 0) {
                         argnumdelaysec = true;
-                } else if (strcmp(argv[n], "-failsilent") == 0) {
+                } else if (strcmp(argv[n], "--failsilent") == 0) {
                         silentmode = true;
                 } else if (strcmp(argv[n], "-v") == 0) {
                         verbosemode = true;
                 } else if (strcmp(argv[n], "-h") == 0) {
-                        printf("-posthook      The script or program to run on public IPv4 address change.\n\
+                        printf("--posthook      The script or program to run on public IPv4 address change.\n\
                Put the command between quotes. Spaces in path are currently not supported.\n");
-                        printf("-retryposthook Rerun posthook on next run if posthook command \n\
+                        printf("--retryposthook Rerun posthook on next run if posthook command \n\
                did not return 0 as exit code.\n");
-                        printf("-showip        Always print the currently confirmed public IPv4 address.\n");
-                        printf("-unsafehttp    Allow the use of http public ip services, no TLS/SSL.\n");
-                        printf("-delay 1-59    Delay the execution of this program with X number of seconds.\n");
-                        printf("-failsilent    Don't print issues to stderr.\n");
-                        printf("-v             Run in verbose mode, output what this program does.\n");
-                        printf("-version       Print the version of this program and exit.\n");
-                        printf("-h             Print this help message.\n");
+                        printf("--showip        Always print the currently confirmed public IPv4 address.\n");
+                        printf("--unsafehttp    Allow the use of http public ip services, no TLS/SSL.\n");
+                        printf("--delay 1-59    Delay the execution of this program with X number of seconds.\n");
+                        printf("--failsilent    Don't print issues to stderr.\n");
+                        printf("--version       Print the version of this program and exit.\n");
+                        printf("-v              Run in verbose mode, output what this program does.\n");
+                        printf("-h              Print this help message.\n");
                         exit(EXIT_SUCCESS);
                 } else if (strcmp(argv[n], "-version") == 0) {
-                        printf("PublicIpChangeDetector 0.4.1\n");
+                        printf("PublicIpChangeDetector %s\n", VERSION);
                         exit(EXIT_SUCCESS);
                 } else if (!silentmode) {
                         fprintf(stderr, "Ignore unknown argument \"%s\".\n", argv[n]);
