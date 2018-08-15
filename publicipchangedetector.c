@@ -25,10 +25,13 @@
 #include <curl/curl.h>
 #include <arpa/inet.h>
 
-#define SEED_LENGTH 32
-#define IPV6_TEXT_LENGTH 34
-#define VERSION "0.4.4"
-typedef unsigned int            uint;
+#define PROGRAMNAME        "PublicIpChangeDetector"
+#define PROGRAMVERSION     "0.4.5"
+#define PROGRAMWEBSITE     " (+https://github.com/D9ping/PublicIpChangeDetector)"
+#define SEED_LENGTH        32
+#define IPV6_TEXT_LENGTH   34
+#define MAXLENPATHPOSTHOOK 1023
+typedef unsigned int       uint;
 
 /**
     Verify that a IPv4 address is valid by using inet_pton.
@@ -86,7 +89,7 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
                         fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
                 }
 
-                fclose(fpavoidurlnrs);
+                return;
         }
 
         fseek(fpavoidurlnrs, 0L, SEEK_END);
@@ -123,9 +126,8 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool sil
 
         FILE * fpreadavoidurlnrs;
         fpreadavoidurlnrs = fopen(filepathreadavoidurlnrs, "r");
-        if (!fpreadavoidurlnrs) {
+        if (fpreadavoidurlnrs == NULL) {
                 perror("fopen");
-                fclose(fpreadavoidurlnrs);
                 return;
         }
 
@@ -276,6 +278,7 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
                 }
         }
 
+        //*seed = NULL;
         /* write urlnr */
         lasturlnr_fd = fopen(filepathlasturlnr, "w+");
         fprintf(lasturlnr_fd, "%d\n", urlnr);
@@ -468,7 +471,12 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
                                  CURLPROTO_HTTPS | CURLPROTO_HTTP);
         }
 
-        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, "PublicIpChangeDetector");
+        char useragent[100];
+        strcpy(useragent, PROGRAMNAME);
+        strcat(useragent, "/");
+        strcat(useragent, PROGRAMVERSION);
+        strcat(useragent, PROGRAMWEBSITE);
+        curl_easy_setopt(curlsession, CURLOPT_USERAGENT, useragent);
         /* Perform the request, res will get the return code */
         CURLcode res;
         res = curl_easy_perform(curlsession);
@@ -557,7 +565,6 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
 
 int main(int argc, char **argv)
 {
-        #define MAXLENPATHPOSTHOOK 1023
         int argnposthook = -1;
         bool retryposthook = false;
         int secondsdelay = 0;
@@ -572,7 +579,6 @@ int main(int argc, char **argv)
                         argnumdelaysec = false;
                         // Check if argv[n] valid is integer
                         int lenarg = strlen(argv[n]);
-                        bool validsecondsarg = true;
                         for (int i = 0; i < lenarg; ++i) {
                                 if (!isdigit(argv[n][i])) {
                                         if (!silentmode) {
@@ -613,13 +619,16 @@ int main(int argc, char **argv)
                         argnumdelaysec = true;
                 } else if (strcmp(argv[n], "--failsilent") == 0) {
                         silentmode = true;
+                } else if (strcmp(argv[n], "--version") == 0) {
+                        printf("%s %s\n", PROGRAMNAME, PROGRAMVERSION);
+                        exit(EXIT_SUCCESS);
                 } else if (strcmp(argv[n], "-v") == 0) {
                         verbosemode = true;
                 } else if (strcmp(argv[n], "-h") == 0) {
                         printf("--posthook      The script or program to run on public IPv4 address change.\n\
-               Put the command between quotes. Spaces in path are currently not supported.\n");
+                Put the command between quotes. Spaces in path are currently not supported.\n");
                         printf("--retryposthook Rerun posthook on next run if posthook command \n\
-               did not return 0 as exit code.\n");
+                did not return 0 as exit code.\n");
                         printf("--showip        Always print the currently confirmed public IPv4 address.\n");
                         printf("--unsafehttp    Allow the use of http public ip services, no TLS/SSL.\n");
                         printf("--delay 1-59    Delay the execution of this program with X number of seconds.\n");
@@ -627,9 +636,6 @@ int main(int argc, char **argv)
                         printf("--version       Print the version of this program and exit.\n");
                         printf("-v              Run in verbose mode, output what this program does.\n");
                         printf("-h              Print this help message.\n");
-                        exit(EXIT_SUCCESS);
-                } else if (strcmp(argv[n], "-version") == 0) {
-                        printf("PublicIpChangeDetector %s\n", VERSION);
                         exit(EXIT_SUCCESS);
                 } else if (!silentmode) {
                         fprintf(stderr, "Ignore unknown argument \"%s\".\n", argv[n]);
@@ -650,10 +656,6 @@ int main(int argc, char **argv)
         if (unsafehttp) {
                 maxurls = 16;
         }
-
-        //if (verbosemode) {
-        //        printf("%d url's to possible use.\n", maxurls);
-        //}
 
         int urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
         char *url;
