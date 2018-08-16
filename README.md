@@ -62,6 +62,12 @@ But sadly every router manufacturer has a different (web)interface for providing
 And often the information is secured by a login screen. 
 PublicIpChangeDetector does not rely on the router and because of this just works everywhere where there is internet access.
 
+###### Why not just trust one good public ip service for updating the dynamic dns(ddns)?
+You could do that but you are putting a lot of trust on one public ip address service 
+ that could technically control your domain records you are automatically updating.
+ By using publicipchangedetector you don't have to fully trust one public ip address service as lies
+ or an errors from one public ip address service are spotted by using consensus with
+ an other randomly selected public ip address service.
 
 ###### What is the maximum downtime for my server if my dynamic public ip address changes?
 It depends on how often you run the publicipchangedetector program for detecting your public ip change.

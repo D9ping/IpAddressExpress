@@ -228,12 +228,11 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
         /* Initializes a random number generator using a seed from /dev/urandom */
         FILE * rand_fd;
         rand_fd = fopen("/dev/urandom", "r");
-        if (rand_fd == 0) {
+        if (rand_fd == NULL) {
                 if (!silentmode) {
                         fprintf(stderr, "Error: could not open /dev/urandom\n");
                 }
 
-                fclose(rand_fd);
                 exit(EXIT_FAILURE);
         }
 
@@ -318,7 +317,6 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
         FILE *fpfileip;
         fpfileip = fopen(filepathip, "r");
         if (fpfileip == NULL) {
-                fclose(fpfileip);
                 if (!silentmode) {
                         fprintf(stderr, "Error: Could not get public ip now. Was not written.\n");
                 }
