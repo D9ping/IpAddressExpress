@@ -64,7 +64,8 @@ And it also depends on how long the dns entries that needs to change are cached 
 
 ###### Should i run publicipchangedetector as often as possible?
 No, please be conservative on how often you run publicipchangedetector. Several public ip services are already serving a lot of requests.
-They don't like it you use too much bandwidth and they will ban/drop you or send you 403 error if you are make too many requests too quickly.
+They don't like it you use too much bandwidth and they will ban/drop you or maybe send you 
+a http forbidden(403) error if you are making too many requests too quickly.
 
 ###### What command-line arguments has publicipchangedetector?
 Run: /opt/PublicIpChangeDetector/publicipchangedetector -h  
