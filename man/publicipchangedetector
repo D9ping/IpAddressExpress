@@ -1,0 +1,45 @@
+.\" Manpage for PublicIpChangeDetector.
+.TH man 8 "14 Aug 2018" "0.4.4" "PublicIpChangeDetector man page"
+.SH NAME
+PublicIpChangeDetector \- Figure out the public IPv4 address confirmed with consensus.
+
+.SH SYNOPSIS
+PublicIpChangeDetector [OPTION]....
+
+.SH DESCRIPTION
+PublicIpChangeDetector can figure out the public IPv4 address from a https public ip service and confirm
+that it's true by using consensus form a other https public ip adddress service to confirm it.
+Because is uses two randomly selected services it's not possible for a https public ip address service to lie to you
+without getting detected.
+
+.SH OPTIONS
+--showip        Always print the current public IPv4 address.
+
+--unsafehttp    Allow the use of not secure http public ip services. This will make
+                PublicIpChangeDetector use more services as http services and https services
+                are used increasing the reliability of getting the public IPv4 address.
+                But you will be vulnerable to man in the middle attacks due to the use
+                of not secure http.
+
+--delay [0-59]  Wait a number of seconds before starting to request any public https service
+                for the public IPv4 address.
+
+--posthook      The command the execute if the current ip address is different from previous run.
+
+--retryposthook Rerun posthook on next run if posthook command fails.
+
+--failsilent    Don't print issues to stderr. To known if a error occured 
+                checking exit status will then be required.
+
+--version       Print the version of this program and exit.
+
+-v              Be verbose on all the actions PublicIpChangeDetector executes.
+
+-h              Get help on possible command-line arguments.
+
+.SH EXIT STATUS
+PublicIpChangeDetector will have exit status 1 on an error and 0 if no error occured.
+
+.SH BUGS
+No known bugs.
+
