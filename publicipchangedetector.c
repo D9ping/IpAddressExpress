@@ -620,9 +620,9 @@ int main(int argc, char **argv)
                 } else if (strcmp(argv[n], "--version") == 0) {
                         printf("%s %s\n", PROGRAMNAME, PROGRAMVERSION);
                         exit(EXIT_SUCCESS);
-                } else if (strcmp(argv[n], "-v") == 0) {
+                } else if (strcmp(argv[n], "-v") == 0 || strcmp(argv[n], "--verbose") == 0) {
                         verbosemode = true;
-                } else if (strcmp(argv[n], "-h") == 0) {
+                } else if (strcmp(argv[n], "-h") == 0 || strcmp(argv[n], "--help") == 0) {
                         printf("--posthook      The script or program to run on public IPv4 address change.\n\
                 Put the command between quotes. Spaces in path are currently not supported.\n");
                         printf("--retryposthook Rerun posthook on next run if posthook command \n\
@@ -632,8 +632,8 @@ int main(int argc, char **argv)
                         printf("--delay 1-59    Delay the execution of this program with X number of seconds.\n");
                         printf("--failsilent    Don't print issues to stderr.\n");
                         printf("--version       Print the version of this program and exit.\n");
-                        printf("-v              Run in verbose mode, output what this program does.\n");
-                        printf("-h              Print this help message.\n");
+                        printf("-v --verbose    Run in verbose mode, output what this program does.\n");
+                        printf("-h --help       Print this help message.\n");
                         exit(EXIT_SUCCESS);
                 } else if (!silentmode) {
                         fprintf(stderr, "Ignore unknown argument \"%s\".\n", argv[n]);

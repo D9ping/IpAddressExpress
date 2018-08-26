@@ -33,9 +33,9 @@ without getting detected.
 
 --version       Print the version of this program and exit.
 
--v              Be verbose on all the actions PublicIpChangeDetector executes.
+-v --verbose    Be verbose on all the actions PublicIpChangeDetector executes.
 
--h              Get help on possible command-line arguments.
+-h --help       Get help on possible command-line arguments.
 
 .SH EXIT STATUS
 PublicIpChangeDetector will have exit status 1 on an error and 0 if no error occured.
