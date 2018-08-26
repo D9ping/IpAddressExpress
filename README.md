@@ -79,6 +79,12 @@ No, please be conservative on how often you run publicipchangedetector. Several 
 They don't like it you use too much bandwidth and they will ban/drop you or maybe send you 
 a http forbidden(403) error if you are making too many requests too quickly.
 
+###### Does publicipchangedetector makes two request on execution? 
+No, it only make 1 http request if previous public ip address from last run is known.
+
+###### What about IPv6?
+There is no need to support IPv6 as it does not use NAT.
+
 ###### How do i get the current public IPv4 address from commandline?
 Run publicipchangedetector with the -showip argument to always print the current public ip address.
 
