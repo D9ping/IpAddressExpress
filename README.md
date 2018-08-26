@@ -95,3 +95,8 @@ Run publicipchangedetector with the -h argumemt for help on all the possible com
 No, PublicIpChangeDetector is still in development. 
 Compiling the binary yourself can create a more optimized binary for the processor you are using.
 
+
+## Support on Beerpay
+Hey dude! Help me out for a couple of :beers:!
+
+[![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/badge.svg?style=beer-square)](https://beerpay.io/D9ping/PublicIpChangeDetector)  [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/make-wish.svg?style=flat-square)](https://beerpay.io/D9ping/PublicIpChangeDetector?focus=wish)
