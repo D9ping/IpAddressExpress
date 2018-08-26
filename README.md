@@ -1,12 +1,13 @@
-# PublicIpChangeDetector
+![PublicIpChangeDetector logo](docs/logo.png?raw=true "PublicIpChangeDetector")
+
 [<img src="https://img.shields.io/github/issues/D9ping/PublicIpChangeDetector.svg?style=flat-square" alt="Open issues" />](https://github.com/D9ping/PublicIpChangeDetector/issues) 
 [![Build Status](https://travis-ci.org/D9ping/PublicIpChangeDetector.svg?branch=master)](https://travis-ci.org/D9ping/PublicIpChangeDetector)
 ### Why use PublicIpChangeDetector?
 Compared to shell scripts for figuring out the public IPv4 address PublicIpChangeDetector will more 
 securely and more reliable detect the current public IPv4 address.
 It's more secure because it does not require to trust a single server and uses https for tamper protection.
-What makes PublicIpChangeDetector more securly is that it requires consensus between two randomly selected public IPv4 address web services.
-Thus it's not possible for a single public IPv4 address web service to fool the computer
+What makes PublicIpChangeDetector more secure is, that it requires consensus between two randomly selected public IPv4 address web services.
+Because of this it's not possible for a single public IPv4 address web service to fool the computer
  incorrectly thinking the public ip address has been changed.
 And by using multiple public IPv4 address web services the current public IPv4 can be discovered after some time
  even when some public IPv4 web services are down.
@@ -96,7 +97,6 @@ No, PublicIpChangeDetector is still in development.
 Compiling the binary yourself can create a more optimized binary for the processor you are using.
 
 
-## Support on Beerpay
-Hey dude! Help me out for a couple of :beers:!
-
+## Support 
+If you find RaspAP useful lease consider buying the founders a drink.
 [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/badge.svg?style=beer-square)](https://beerpay.io/D9ping/PublicIpChangeDetector)  [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/make-wish.svg?style=flat-square)](https://beerpay.io/D9ping/PublicIpChangeDetector?focus=wish)
