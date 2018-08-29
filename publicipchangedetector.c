@@ -95,7 +95,7 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
         fseek(fpavoidurlnrs, 0L, SEEK_END);
         long filesizeavoidurlnrs = ftell(fpavoidurlnrs);
         if (filesizeavoidurlnrs == 0L) {
-            writecomma = false;
+                writecomma = false;
         }
 
         if (writecomma == true) {
@@ -150,7 +150,8 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool sil
                                 ++numurlnrs;
                                 if (numurlnrs >= maxurls) {
                                         if (!silentmode) {
-                                                fprintf(stderr, "Maximum number of urlnr numbers to avoid reached.");
+                                                fprintf(stderr, "Maximum number of urlnr\
+ numbers to avoid reached.");
                                         }
 
                                         break;
@@ -177,7 +178,9 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool sil
 
                 if (!isdigit(lineavoidurlnrs[i])) {
                         if (!silentmode) {
-                                fprintf(stderr, "Error '%c' character is not a number.\n", lineavoidurlnrs[i]);
+                                fprintf(stderr,
+                                        "Error '%c' character is not a number.\n",
+                                        lineavoidurlnrs[i]);
                         }
 
                         continue;
@@ -213,7 +216,6 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
         FILE * lasturlnr_fd;
         int lasturlnr = -1;
         if (access(filepathlasturlnr, F_OK) != -1) {
-                // exists
                 ssize_t bytesread;
                 size_t len = 0;
                 lasturlnr_fd = fopen(filepathlasturlnr, "r");
@@ -225,7 +227,7 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
                 }
         }
 
-        /* Initializes a random number generator using a seed from /dev/urandom */
+        // Initializes a random number generator using a seed from /dev/urandom */
         FILE * rand_fd;
         rand_fd = fopen("/dev/urandom", "r");
         if (rand_fd == NULL) {
@@ -298,7 +300,7 @@ void strip_on_newlinechar(char *str, int strlength)
 {
         for (int i = 0; i < strlength; ++i) {
                 if (str[i] == '\n') {
-                        /* Added null character here so it's shorter just before first line feed. */
+                        // Added null character here so it's shorter just before first line feed.
                         str[i] = '\0';
                         return;
                 }
@@ -362,7 +364,7 @@ char * get_url_ipservice(const int urlnr, bool silentmode)
         }
 
         switch (urlnr) {
-        /* https services */
+        // https services:
         case 0:
                 strcpy(url, "https://ipinfo.io/ip");
                 break;
@@ -396,7 +398,7 @@ char * get_url_ipservice(const int urlnr, bool silentmode)
         case 10:
                 strcpy(url, "https://ip4.seeip.org/");
                 break;
-        /* http services */
+        // http services:
         case 11:
                 strcpy(url, "http://myip.dnsomatic.com/");
                 break;
@@ -520,8 +522,8 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
         case 403L:
         case 404L:
         case 410L:
-                printf("Warn: the used public ip address service has quit or does not want automatic use.\n\
- Never use this public ip service again.\n");
+                printf("Warn: the used public ip address service has quit or does not\
+ want automatic use.\nNever use this public ip service again.\n");
                 write_avoid_urlnr(urlnr, silentmode);
                 break;
         case 301L:
@@ -580,7 +582,8 @@ int main(int argc, char **argv)
                         for (int i = 0; i < lenarg; ++i) {
                                 if (!isdigit(argv[n][i])) {
                                         if (!silentmode) {
-                                                fprintf(stderr, "Error: invalid number of seconds delay.\n");
+                                                fprintf(stderr, 
+                                                        "Error: invalid number of seconds delay.\n");
                                         }
 
                                         exit(EXIT_FAILURE);
@@ -696,7 +699,8 @@ int main(int argc, char **argv)
                         free(previpaddrstr);
                         unlink(filepathipnow);
                         if (!silentmode) {
-                                fprintf(stderr, "Error: invalid IP(IPv4) address for first run confirmation from %s.\n", confirmurl);
+                                fprintf(stderr, "Error: invalid IP(IPv4) address for first\
+ run confirmation from %s.\n", confirmurl);
                         }
 
                         exit(EXIT_FAILURE);
@@ -704,10 +708,11 @@ int main(int argc, char **argv)
 
                 if (strcmp(ipaddrstr, previpaddrstr) != 0) {
                         if (!silentmode) {
-                                fprintf(stderr, "Alert: one of the ip address services could have lied to us.\n\
- Try getting public ip again on next run.\n");
+                                fprintf(stderr, "Alert: one of the ip address services\
+ couldhave lied to us.\nTry getting public ip again on next run.\n");
                                 fprintf(stderr, "IPv4: %s from %s.\n", ipaddrstr, url);
-                                fprintf(stderr, "IPv4: %s from %s.\n", previpaddrstr, confirmurl);
+                                fprintf(stderr, "IPv4: %s from %s.\n", previpaddrstr,
+                                        confirmurl);
                         }
 
                         exit(EXIT_FAILURE);
@@ -718,7 +723,8 @@ int main(int argc, char **argv)
 
         if (strcmp(ipaddrstr, previpaddrstr) != 0) {
                 if (verbosemode) {
-                        printf("Public ip change detected, ip address different from last run.\n");
+                        printf("Public ip change detected, ip address different from last\
+ run.\n");
                 }
 
                 urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
@@ -733,7 +739,8 @@ int main(int argc, char **argv)
                 if (is_valid_ipv4_addr(confirmipaddrstr) != 1) {
                         free(confirmipaddrstr);
                         if (!silentmode) {
-                                fprintf(stderr, "Error: invalid IP(IPv4) address returned from %s as confirm public ip service.\n", url);
+                                fprintf(stderr, "Error: invalid IP(IPv4) address returned\
+ from %s as confirm public ip service.\n", url);
                         }
 
                         unlink(filepathipnow);
@@ -746,8 +753,8 @@ int main(int argc, char **argv)
 
                 if (strcmp(confirmipaddrstr, previpaddrstr) == 0) {
                         if (!silentmode) {
-                                fprintf(stderr, "Alert: the ip address service could have lied to us.\n\
- It's now unknown if public ip address has actually changed.\n");
+                                fprintf(stderr, "Alert: the ip address service could have\
+ lied to us.\nIt's now unknown if public ip address has actually changed.\n");
                         }
 
                         if (showip) {
@@ -771,13 +778,28 @@ int main(int argc, char **argv)
                 }
 
                 char cmdposthook[MAXLENPATHPOSTHOOK + 1];
-                // TODO: path spaces issue
-                snprintf(cmdposthook, MAXLENPATHPOSTHOOK, "%s \"%s\"", argv[argnposthook], ipaddrstr);
+                if (strchr(ipaddrstr, '"') != NULL) {
+                        if (!silentmode) {
+                                fprintf(stderr, "Error: quote in ip address.\n");
+                        }
+
+                        exit(EXIT_FAILURE);
+                } else if (strchr(argv[argnposthook], '"') != NULL) {
+                        if (!silentmode) {
+                                fprintf(stderr, "Error: quote in posthook command.\n");
+                        }
+
+                        exit(EXIT_FAILURE);
+                }
+
+                snprintf(cmdposthook, MAXLENPATHPOSTHOOK, "\"%s\" \"%s\"", argv[argnposthook], ipaddrstr);
                 /* printf("cmdposthook = [ %s ]\n", cmdposthook); // DEBUG */
                 unsigned short exitcode = system(cmdposthook);
                 if (exitcode != 0) {
                         if (!silentmode) {
-                                fprintf(stderr, "Error: script returned error (exitcode %hu).\n", exitcode);
+                                fprintf(stderr,
+                                        "Error: script returned error (exitcode %hu).\n",
+                                        exitcode);
                         }
 
                         if (retryposthook) {
