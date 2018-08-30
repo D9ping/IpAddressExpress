@@ -31,6 +31,7 @@
 #define SEED_LENGTH        32
 #define IPV6_TEXT_LENGTH   34
 #define MAXLENPATHPOSTHOOK 1023
+#define MAXSIZEAVOIDURLNRS 4096
 typedef unsigned int       uint;
 
 /**
@@ -93,9 +94,34 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
         }
 
         fseek(fpavoidurlnrs, 0L, SEEK_END);
-        long filesizeavoidurlnrs = ftell(fpavoidurlnrs);
+        unsigned long filesizeavoidurlnrs = ftell(fpavoidurlnrs);
+        if (filesizeavoidurlnrs > MAXSIZEAVOIDURLNRS) {
+                if (!silentmode) {
+                        fprintf(stderr, "Error: %s too big.\n", filepathavoidurlnrs);
+                }
+
+                return;
+        }
+
+        rewind(fpavoidurlnrs);
+        int lastcharfirstline = 0;
+        int c;
+        do {
+                c = getc(fpavoidurlnrs);
+                if (c == '\n' || c == '\r') {
+                        break;
+                }
+
+                lastcharfirstline++;
+        } while (c != EOF);
+
         if (filesizeavoidurlnrs == 0L) {
                 writecomma = false;
+        }
+
+        if (lastcharfirstline != (int)(filesizeavoidurlnrs++)) {
+                fprintf(stderr, "First line is shorter than filesize\
+ overwriting after first line.\n");
         }
 
         if (writecomma == true) {
@@ -279,8 +305,7 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
                 }
         }
 
-        //*seed = NULL;
-        /* write urlnr */
+        // write urlnr
         lasturlnr_fd = fopen(filepathlasturlnr, "w+");
         fprintf(lasturlnr_fd, "%d\n", urlnr);
         fclose(lasturlnr_fd);
