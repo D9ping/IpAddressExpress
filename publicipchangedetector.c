@@ -423,20 +423,32 @@ char * get_url_ipservice(const int urlnr, bool silentmode)
         case 10:
                 strcpy(url, "https://ip4.seeip.org/");
                 break;
-        // http services:
         case 11:
-                strcpy(url, "http://myip.dnsomatic.com/");
+                strcpy(url, "https://locate.now.sh/ip");
                 break;
         case 12:
-                strcpy(url, "http://whatismyip.akamai.com/");
+                strcpy(url, "https://tnx.nl/ip");
                 break;
         case 13:
-                strcpy(url, "http://myexternalip.com/raw");
+                strcpy(url, "https://diagnostic.opendns.com/myip");
                 break;
         case 14:
+                strcpy(url, "https://ip4.seeip.org/");
+                break;
+        // http services:
+        case 15:
+                strcpy(url, "http://myip.dnsomatic.com/");
+                break;
+        case 16:
+                strcpy(url, "http://whatismyip.akamai.com/");
+                break;
+        case 17:
+                strcpy(url, "http://myexternalip.com/raw");
+                break;
+        case 18:
                 strcpy(url, "http://ipecho.net/plain");
                 break;
-        case 15:
+        case 19:
                 strcpy(url, "http://plain-text-ip.com");
                 break;
         default:
@@ -678,9 +690,9 @@ int main(int argc, char **argv)
 
         char filepathipnow[] = "/tmp/ipnow.txt";
         char filepathipwas[] = "/tmp/ipwas.txt";
-        int maxurls = 11;
+        int maxurls = 15;
         if (unsafehttp) {
-                maxurls = 16;
+                maxurls = 20;
         }
 
         int urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
