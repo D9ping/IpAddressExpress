@@ -1,6 +1,6 @@
-LDLIBS = -lcurl
+LDLIBS = -lcurl -lsqlite3
 CFLAGS = -O3 -std=c99
 
 build:
-	gcc publicipchangedetector.c $(LDLIBS) $(CFLAGS) -o publicipchangedetector 
+	gcc main.c db.c $(LDLIBS) $(CFLAGS) -o publicipchangedetector_beta 
 

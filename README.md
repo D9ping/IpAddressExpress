@@ -30,7 +30,7 @@ This flowcharts show is how PublicIpChangeDetector works:
 ### Compiling PublicIpChangeDetector from source
 Install the required packages.
 ```
-sudo apt-get install build-essential libcurl4-openssl-dev git-core
+sudo apt-get install build-essential libcurl4-openssl-dev libsqlite3-dev git-core
 ```
  Get the PublicIpChangeDetector sourcecode in the folder /opt/ with:
 ```
@@ -103,5 +103,5 @@ TODO's:
 
 
 ## Support 
-If you find it useful lease consider buying the founders a drink.
+If you find it useful, consider buying me a drink.
 [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/badge.svg?style=beer-square)](https://beerpay.io/D9ping/PublicIpChangeDetector)  [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/make-wish.svg?style=flat-square)](https://beerpay.io/D9ping/PublicIpChangeDetector?focus=wish)

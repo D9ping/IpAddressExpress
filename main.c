@@ -24,15 +24,18 @@
 #include <ctype.h>
 #include <curl/curl.h>
 #include <arpa/inet.h>
+#include <sqlite3.h>
+#include "db.h"
 
 #define PROGRAMNAME        "PublicIpChangeDetector"
-#define PROGRAMVERSION     "0.4.5"
+#define PROGRAMVERSION     "0.5.0-beta"
 #define PROGRAMWEBSITE     " (+https://github.com/D9ping/PublicIpChangeDetector)"
 #define SEED_LENGTH        32
 #define IPV6_TEXT_LENGTH   34
 #define MAXLENPATHPOSTHOOK 1023
 #define MAXSIZEAVOIDURLNRS 4096
 typedef unsigned int       uint;
+
 
 /**
     Verify that a IPv4 address is valid by using inet_pton.
@@ -73,6 +76,7 @@ int is_num_within_numarr(int numarr[], int maxurls, int needlenum)
 
 /**
     Write urlnr to file to avoid on next run.
+    TODO: to be removed.
 */
 void write_avoid_urlnr(int urlnr, bool silentmode)
 {
@@ -136,6 +140,7 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
 
 /**
     Get a pointer to the array with urlnr to avoid.
+    TODO: to be removed.
  */
 void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool silentmode)
 {
@@ -223,7 +228,7 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool sil
     Write the random number to disk and do not use the same value next time.
     @return A random number between 0 and maxurls.
 */
-int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
+int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silentmode)
 {
         if (verbosemode) {
                 printf("Choice random urlnr.\n");
@@ -237,20 +242,10 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
                 exit(EXIT_FAILURE);
         }
 
-        char filepathlasturlnr[] = "/tmp/lasturlnr.txt";
-        char *strlasturlnr;
-        FILE * lasturlnr_fd;
-        int lasturlnr = -1;
-        if (access(filepathlasturlnr, F_OK) != -1) {
-                ssize_t bytesread;
-                size_t len = 0;
-                lasturlnr_fd = fopen(filepathlasturlnr, "r");
-                bytesread = getline(&strlasturlnr, &len, lasturlnr_fd);
-                fclose(lasturlnr_fd);
-                lasturlnr = atoi(strlasturlnr);
-                if (verbosemode) {
-                        printf("read lasturlnr = %d\n", lasturlnr);
-                }
+        bool needaddlasturl = false;
+        int lasturlnr = get_config_value_int(db, "lasturlnr");
+        if (lasturlnr == -1) {
+                needaddlasturl = true;
         }
 
         // Initializes a random number generator using a seed from /dev/urandom */
@@ -305,12 +300,10 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
                 }
         }
 
-        // write urlnr
-        lasturlnr_fd = fopen(filepathlasturlnr, "w+");
-        fprintf(lasturlnr_fd, "%d\n", urlnr);
-        fclose(lasturlnr_fd);
-        if (verbosemode) {
-                printf("new urlnr = %d\n", urlnr);
+        if (needaddlasturl) {
+                add_config_value_int(db, "lasturlnr", urlnr, verbosemode);
+        } else {
+                update_config_value_int(db, "lasturlnr", urlnr, verbosemode);
         }
 
         return urlnr;
@@ -370,104 +363,16 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
 
 
 /**
-    Get a random url of one of the public ip http or https service. 
-    But not the same url as the last random url.
-    @return An random url to get the public ip address from.
-*/
-char * get_url_ipservice(const int urlnr, bool silentmode)
-{
-        /* printf("urlnr = %d\n", urlnr); // DEBUG */
-        // Allocate url memory dynamically.
-        char *url = NULL;
-        url = malloc(40 * sizeof(char)); // strlen("https://secure.informaction.com/ipecho/") => 39
-        if (url == NULL) {
-                if (!silentmode) {
-                        fprintf(stderr, "Error: unable to allocate required memory.\n");
-                }
-
-                exit(EXIT_FAILURE);
-        }
-
-        switch (urlnr) {
-        // https services:
-        case 0:
-                strcpy(url, "https://ipinfo.io/ip");
-                break;
-        case 1:
-                strcpy(url, "https://api.ipify.org/?format=text");
-                break;
-        case 2:
-                strcpy(url, "https://wtfismyip.com/text");
-                break;
-        case 3:
-                strcpy(url, "https://v4.ident.me/");
-                break;
-        case 4:
-                strcpy(url, "https://ipv4.icanhazip.com/");
-                break;
-        case 5:
-                strcpy(url, "https://checkip.amazonaws.com/");
-                break;
-        case 6:
-                strcpy(url, "https://bot.whatismyipaddress.com/");
-                break;
-        case 7:
-                strcpy(url, "https://secure.informaction.com/ipecho/");
-                break;
-        case 8:
-                strcpy(url, "https://l2.io/ip");
-                break;
-        case 9:
-                strcpy(url, "https://www.trackip.net/ip");
-                break;
-        case 10:
-                strcpy(url, "https://ip4.seeip.org/");
-                break;
-        case 11:
-                strcpy(url, "https://locate.now.sh/ip");
-                break;
-        case 12:
-                strcpy(url, "https://tnx.nl/ip");
-                break;
-        case 13:
-                strcpy(url, "https://diagnostic.opendns.com/myip");
-                break;
-        case 14:
-                strcpy(url, "https://ip4.seeip.org/");
-                break;
-        // http services:
-        case 15:
-                strcpy(url, "http://myip.dnsomatic.com/");
-                break;
-        case 16:
-                strcpy(url, "http://whatismyip.akamai.com/");
-                break;
-        case 17:
-                strcpy(url, "http://myexternalip.com/raw");
-                break;
-        case 18:
-                strcpy(url, "http://ipecho.net/plain");
-                break;
-        case 19:
-                strcpy(url, "http://plain-text-ip.com");
-                break;
-        default:
-                if (!silentmode) {
-                        fprintf(stderr, "Error: unknown urlnr.\n");
-                }
-
-                exit(EXIT_FAILURE);
-        }
-
-        return url;
-}
-
-
-/**
     Download all content from a url 
 */
-void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafehttp, bool silentmode)
+void download_file(const char *url, int urlnr, char *filepathnewdownload, bool unsafehttp, bool silentmode)
 {
+        /* Copy pointer of chars to fixed array */
+        char urlipservice[1024];
+        size_t urlipservice_size = sizeof(urlipservice);
+        strncpy(urlipservice, url, urlipservice_size);
+        urlipservice[urlipservice_size - 1] = '\0';
+
         FILE *fpdownload;
         // mode w+: truncates the file to zero length if it exists,
         // otherwise creates a file if it does not exist.
@@ -485,7 +390,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
                 exit(EXIT_FAILURE);
         }
 
-        curl_easy_setopt(curlsession, CURLOPT_URL, url);
+        curl_easy_setopt(curlsession, CURLOPT_URL, urlipservice);
         /* Use a GET to fetch this */
         curl_easy_setopt(curlsession, CURLOPT_HTTPGET, 1L);
         /* Write to fpdownload */
@@ -508,7 +413,7 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
                                  CURLPROTO_HTTPS | CURLPROTO_HTTP);
         }
 
-        char useragent[100];
+        char useragent[128];
         strcpy(useragent, PROGRAMNAME);
         strcat(useragent, "/");
         strcat(useragent, PROGRAMVERSION);
@@ -520,7 +425,10 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
         /* Check for errors */
         if (res != CURLE_OK) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: %s, url: %s\n", curl_easy_strerror(res), url);
+                        fprintf(stderr, 
+                                "Error: %s, url: %s\n", 
+                                curl_easy_strerror(res), 
+                                urlipservice);
                 }
 
                 curl_easy_cleanup(curlsession);
@@ -568,11 +476,11 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
         case 308L:
                 printf("Warn: public IP address service has changed url and is redirecting\
  (http status code: %ld).\n", http_code);
-                printf("Incorrect url: %s\n", url);
+                printf("Incorrect url: %s\n", urlipservice);
                 char *followurl = NULL;
                 curl_easy_getinfo(curlsession, CURLINFO_REDIRECT_URL, &followurl);
                 if (followurl) {
-                        if (strcmp(followurl, url) != 0) {
+                        if (strcmp(followurl, urlipservice) != 0) {
                                 printf("Wants to redirect to: %s\n", followurl);
                         } else {
                                 printf("Redirect to same page.\n");
@@ -600,6 +508,9 @@ void download_file(char *url, int urlnr, char *filepathnewdownload, bool unsafeh
 }
 
 
+/**
+        Start program
+ */
 int main(int argc, char **argv)
 {
         int argnposthook = -1;
@@ -688,16 +599,61 @@ int main(int argc, char **argv)
                 sleep(secondsdelay);
         }
 
-        char filepathipnow[] = "/tmp/ipnow.txt";
-        char filepathipwas[] = "/tmp/ipwas.txt";
-        int maxurls = 15;
-        if (unsafehttp) {
-                maxurls = 20;
+        bool dbsetup = false;
+        if (access("data.db", F_OK) == -1 ) {
+                dbsetup = true;
+                if (verbosemode) {
+                        printf("data.db does not exists.\n");
+                }
         }
 
-        int urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
-        char *url;
-        url = get_url_ipservice(urlnr, silentmode);
+        /* Setup database connection */
+        sqlite3 *db;
+        char *errormsg = 0;
+        int rc;
+        rc = sqlite3_open("data.db", &db);
+        if (rc) {
+                fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+                return(0);
+        } else {
+                fprintf(stderr, "Opened database successfully\n");
+        }
+
+        /* does database file exists? */
+        if (dbsetup) {
+                create_table_ipservice(db, verbosemode);
+                create_table_config(db, verbosemode);
+                add_config_value_int(db, "lasturlnr", -2, verbosemode);
+                /* added default ipservice records */
+                add_ipservice(db, 0, "https://ipinfo.io/ip", false, 2, verbosemode);
+                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, 2, verbosemode);
+                add_ipservice(db, 2, "https://wtfismyip.com/text", false, 2, verbosemode);
+                add_ipservice(db, 3, "https://v4.ident.me/", false, 2, verbosemode);
+                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, 2, verbosemode);
+                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, 2, verbosemode);
+                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, 2, verbosemode);
+                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, 2, verbosemode);
+                add_ipservice(db, 8, "https://l2.io/ip", false, 2, verbosemode);
+                add_ipservice(db, 9, "https://www.trackip.net/ip", false, 2, verbosemode);
+                add_ipservice(db, 10, "https://ip4.seeip.org/", false, 2, verbosemode);
+                add_ipservice(db, 11, "https://locate.now.sh/ip", false, 2, verbosemode);
+                add_ipservice(db, 12, "https://tnx.nl/ip", false, 2, verbosemode);
+                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, 2, verbosemode);
+                add_ipservice(db, 14, "https://ip4.seeip.org/", false, 2, verbosemode);
+                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, 1, verbosemode);
+                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, 1, verbosemode);
+                add_ipservice(db, 17, "http://myexternalip.com/raw", false, 1, verbosemode);
+                add_ipservice(db, 18, "http://ipecho.net/plain", false, 1, verbosemode);
+                add_ipservice(db, 19, "http://plain-text-ip.com/", false, 1, verbosemode);
+        }
+
+        int maxurls = get_count_ipservices(db);
+        char filepathipnow[] = "/tmp/ipnow.txt";
+        char filepathipwas[] = "/tmp/ipwas.txt";
+
+        int urlnr = get_new_random_urlnr(db, maxurls, verbosemode, silentmode);
+        const char *url;
+        url = get_url_ipservice(db, urlnr);
         if (verbosemode) {
                 printf("Use: %s for getting public IPv4 address.\n", url);
         }
@@ -722,9 +678,9 @@ int main(int argc, char **argv)
         char *previpaddrstr;
         if (access(filepathipwas, F_OK) == -1 ) {
                 // PublicIpChangeDetector has not been runned before.
-                char *confirmurl;
-                urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
-                confirmurl = get_url_ipservice(urlnr, silentmode);
+                const char *confirmurl;
+                urlnr = get_new_random_urlnr(db, maxurls, verbosemode, silentmode);
+                confirmurl = get_url_ipservice(db, urlnr);
                 if (verbosemode) {
                         printf("First run. Confirm current public ip result.\n");
                         printf("Use: %s to confirm public ip address.\n", confirmurl);
@@ -764,20 +720,21 @@ int main(int argc, char **argv)
  run.\n");
                 }
 
-                urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
-                url = get_url_ipservice(urlnr, silentmode);
+                urlnr = get_new_random_urlnr(db, maxurls, verbosemode, silentmode);
+                const char *confirmurl;
+                confirmurl = get_url_ipservice(db, urlnr);
                 if (verbosemode) {
-                        printf("Public ip service %s is used to confirm ip address\n", url);
+                        printf("Public ip service %s is used to confirm ip address\n", confirmurl);
                 }
 
-                download_file(url, urlnr, filepathipnow, unsafehttp, silentmode);
+                download_file(confirmurl, urlnr, filepathipnow, unsafehttp, silentmode);
                 char *confirmipaddrstr;
                 confirmipaddrstr = read_file_ipaddr(filepathipnow, silentmode);
                 if (is_valid_ipv4_addr(confirmipaddrstr) != 1) {
                         free(confirmipaddrstr);
                         if (!silentmode) {
                                 fprintf(stderr, "Error: invalid IP(IPv4) address returned\
- from %s as confirm public ip service.\n", url);
+ from %s as confirm public ip service.\n", confirmurl);
                         }
 
                         unlink(filepathipnow);
