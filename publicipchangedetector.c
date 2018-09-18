@@ -264,7 +264,7 @@ int get_new_random_urlnr(int maxurls, bool verbosemode, bool silentmode)
                 exit(EXIT_FAILURE);
         }
 
-        int avoidurlnrs[16] = {-1}; // avoidurlnrs[maxurls]
+        int avoidurlnrs[20] = {-1}; // avoidurlnrs[maxurls]
         if (verbosemode) {
                 printf("Get array with urlnumbers to avoid.\n");
         }
@@ -690,9 +690,9 @@ int main(int argc, char **argv)
 
         char filepathipnow[] = "/tmp/ipnow.txt";
         char filepathipwas[] = "/tmp/ipwas.txt";
-        int maxurls = 11;
+        int maxurls = 15;
         if (unsafehttp) {
-                maxurls = 16;
+                maxurls = 20;
         }
 
         int urlnr = get_new_random_urlnr(maxurls, verbosemode, silentmode);
