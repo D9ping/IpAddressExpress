@@ -34,6 +34,7 @@
 #define IPV6_TEXT_LENGTH   34
 #define MAXNUMSECDELAY     60
 #define MAXLENPATHPOSTHOOK 1023
+#define MAXLENURL          1023
 #define MAXSIZEAVOIDURLNRS 4096
 typedef unsigned int       uint;
 
@@ -380,21 +381,81 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
 
 
 /**
- * Download the ip address from a ipservice.
- * @return   result. or ip address?
+        Parse http status code.
  */
-char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3 *db, int urlnr, bool unsafehttp, bool silentmode)
+void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
 {
-        printf("1) urlipservice = %s\n", urlipservice);  // FIXME: unexcepted result first run.
+        printf("parse_httpcode_status, httpcode = %d.\n", httpcode);
+        switch (httpcode) {
+        case 420L:
+        case 429L:
+        case 503L:
+        case 509L:
+                printf("Warn: rate limiting active.\
+ Avoid the current public ip address service for some time.");
+                update_ipsevice_temporary_disable(db, urlnr);
+                exit(EXIT_FAILURE);
+        case 408L:
+        case 500L:
+        case 502L:
+        case 504L:
+                printf("Warn: used public ip address service has an error or other issue\
+ (http error: %d).\n", httpcode);
+                // should not be avoid forever, but for some time only.
+                update_ipsevice_temporary_disable(db, urlnr);
+                break;
+        case 401L:
+        case 403L:
+        case 404L:
+        case 410L:
+                printf("Warn: the used public ip address service has quit or does not\
+ want automatic use.\nNever use this public ip service again.\n");
+                // do disable forever
+                update_ipsevice_temporary_disable(db, urlnr);
+                break;
+        case 301L:
+        case 302L:
+        case 308L:
+                printf("Warn: public IP address service has changed url and is redirecting\
+ (http status code: %d).\n", httpcode);
+ /*
+                printf("Incorrect url: %s\n", urlipservice);
+                if (strcmp(followurl, urlipservice) != 0) {
+                        printf("Wants to redirect to: %s\n", followurl);
+                } else {
+                        printf("Redirect to same page.\n");
+                }
+*/
+                update_ipsevice_temporary_disable(db, urlnr);
+                break;
+        }
+}
 
+
+/**
+ * Download the ip address from a ipservice.
+ * @return ip address
+ */
+char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3 *db, int urlnr,
+                                 bool unsafehttp, bool silentmode, int * httpcodestatus)
+{
+        long int lenurlipservice = strlen(urlipservice);
+        if (lenurlipservice > MAXLENURL) {
+                printf("Url too long.\n");
+                exit(1);
+        }
+
+        char *url = NULL;
+        url = malloc(MAXLENURL * sizeof(char));
+        strcpy(url, urlipservice);
         char downloadtempfilepath[] = "/tmp/tempip.txt";
         FILE *fpdownload;
         // mode w+: truncates the file to zero length if it exists,
         // otherwise creates a file if it does not exist.
         fpdownload = fopen(downloadtempfilepath, "w+");
         curl_global_init(CURL_GLOBAL_DEFAULT);
-        CURL *curlsession;
-        curlsession = curl_easy_init();
+        //CURL *curlsession;
+        CURL * curlsession = curl_easy_init();
         if (!curlsession || curlsession == NULL) {
                 if (!silentmode) {
                         fprintf(stderr, "Error: should not setup curl session.\n");
@@ -405,7 +466,7 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                 exit(EXIT_FAILURE);
         }
 
-        curl_easy_setopt(curlsession, CURLOPT_URL, urlipservice);
+        curl_easy_setopt(curlsession, CURLOPT_URL, url);
         curl_easy_setopt(curlsession, CURLOPT_HTTPGET, 1L);
         // Write to fpdownload
         curl_easy_setopt(curlsession, CURLOPT_WRITEDATA, fpdownload);
@@ -451,62 +512,8 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                 exit(EXIT_FAILURE);
         }
 
-        long http_code = 0;
-        curl_easy_getinfo(curlsession, CURLINFO_RESPONSE_CODE, &http_code);
-
-        // Get HTTP status code.
-        printf("Got HTTP status code: %ld.\n", http_code);
-        switch (http_code) {
-        case 420L:
-        case 429L:
-        case 503L:
-        case 509L:
-                printf("Warn: rate limiting active.\
- Avoid the current public ip address service for some time.");
-                curl_easy_cleanup(curlsession);
-                fclose(fpdownload);
-                update_ipsevice_temporary_disable(db, urlnr);
-                exit(EXIT_FAILURE);
-        case 408L:
-        case 500L:
-        case 502L:
-        case 504L:
-                printf("Warn: used public ip address service has an error or other issue\
- (http error: %ld).\n", http_code);
-                // should not be avoid forever, but for some time only.
-                update_ipsevice_temporary_disable(db, urlnr);
-                break;
-        case 401L:
-        case 403L:
-        case 404L:
-        case 410L:
-                printf("Warn: the used public ip address service has quit or does not\
- want automatic use.\nNever use this public ip service again.\n");
-                // do disable forever
-                update_ipsevice_temporary_disable(db, urlnr);
-                break;
-        case 301L:
-        case 302L:
-        case 308L:
-                printf("Warn: public IP address service has changed url and is redirecting\
- (http status code: %ld).\n", http_code);
-                printf("Incorrect url: %s\n", urlipservice);
-                char *followurl = NULL;
-                curl_easy_getinfo(curlsession, CURLINFO_REDIRECT_URL, &followurl);
-                if (followurl) {
-                        if (strcmp(followurl, urlipservice) != 0) {
-                                printf("Wants to redirect to: %s\n", followurl);
-                        } else {
-                                printf("Redirect to same page.\n");
-                        }
-                }
-
-                update_ipsevice_temporary_disable(db, urlnr);
-                break;
-        }
-
-        // Cleanup curl.
-        curl_easy_cleanup(curlsession);
+        int httpcode = 0;
+        curl_easy_getinfo(curlsession, CURLINFO_RESPONSE_CODE, &httpcode);
 
         // Check the filelength of the downloaded file.
         fseek(fpdownload, 0L, SEEK_END);
@@ -516,6 +523,17 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                 printf("Downloaded file filesize: %llu bytes.\n", downloadedfilesize);
         }
 
+        char *followurl = NULL;
+        curl_easy_getinfo(curlsession, CURLINFO_REDIRECT_URL, &followurl);
+
+        // Cleanup curl.
+        curl_easy_cleanup(curlsession);
+
+        // Get HTTP status code.
+        printf("download_ipaddr_ipservice, httpcode = %d.\n", httpcode);
+        *httpcodestatus = httpcode;
+
+        // Check filesize
         if (downloadedfilesize == 0) {
                 if (!silentmode) {
                         fprintf(stderr, "Error: downloaded file is empty.\n");
@@ -531,7 +549,10 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                 exit(EXIT_FAILURE);
         }
 
+        // Did it got set?
         ipaddr = read_file_ipaddr(downloadtempfilepath, silentmode);
+
+        //return http_code;
         return ipaddr;
 }
 
@@ -709,18 +730,22 @@ int main(int argc, char **argv)
 
         int maxurls = get_count_ipservices(db);
         int urlnr = get_new_random_urlnr(db, maxurls, settings.verbosemode, settings.silentmode);
-        char *urlipservice;
+        const char *urlipservice;
         urlipservice = get_url_ipservice(db, urlnr);
         if (settings.verbosemode) {
                 printf("Use: %s for getting public IPv4 address.\n", urlipservice);
         }
 
-        char *ipaddrnow;
-        ipaddrnow = download_ipaddr_ipservice(ipaddrnow, urlipservice, db, urlnr, settings.unsafehttp, settings.silentmode);
-        printf("ipaddrnow = %s\n", ipaddrnow);
-        //printf("res = %d\n", resdownloadip);
-        //update_config_value_str(db, "ipnow", ipaddrstr);
-
+        int httpcodestatus = 0;
+        char * ipaddrnow;
+        ipaddrnow = download_ipaddr_ipservice(ipaddrnow,
+                                              urlipservice,
+                                              db,
+                                              urlnr,
+                                              settings.unsafehttp,
+                                              settings.silentmode,
+                                              &httpcodestatus);
+        parse_httpcode_status(httpcodestatus, db, urlnr);
         if (is_valid_ipv4_addr(ipaddrnow) != 1) {
                 free(ipaddrnow);
                 if (!settings.silentmode) {
@@ -743,7 +768,15 @@ int main(int argc, char **argv)
                         printf("Using %s to confirm current public ip address with.\n", confirmurl);
                 }
 
-                ipaddrconfirm = download_ipaddr_ipservice(ipaddrconfirm, urlipservice, db, urlnr, settings.unsafehttp, settings.silentmode);
+                int httpcodeconfirm = -1;
+                ipaddrconfirm = download_ipaddr_ipservice(ipaddrconfirm,
+                                                          confirmurl,
+                                                          db,
+                                                          urlnr,
+                                                          settings.unsafehttp,
+                                                          settings.silentmode,
+                                                          &httpcodeconfirm);
+                parse_httpcode_status(httpcodeconfirm, db, urlnr);
                 if (is_valid_ipv4_addr(ipaddrconfirm) != 1) {
                         free(ipaddrconfirm);
                         //unlink(filepathipnow);
@@ -759,7 +792,7 @@ int main(int argc, char **argv)
                 if (strcmp(ipaddrnow, ipaddrconfirm) != 0) {
                         if (!settings.silentmode) {
                                 fprintf(stderr, "Alert: one of the ip address services\
- couldhave lied to us.\nTry getting public ip again on next run.\n");
+ could have lied to us.\nTry getting public ip again on next run.\n");
                                 fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
                                 fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm,
                                         confirmurl);
@@ -790,8 +823,15 @@ int main(int argc, char **argv)
                 }
 
                 char *ipaddrconfirmchange;
-                ipaddrconfirmchange = download_ipaddr_ipservice(ipaddrconfirmchange, urlipservice, db, urlnr,
-                                                                settings.unsafehttp, settings.silentmode);
+                int httpcodeconfirmchange = -2;
+                ipaddrconfirmchange = download_ipaddr_ipservice(ipaddrconfirmchange,
+                                                                confirmchangeurl,
+                                                                db,
+                                                                urlnr,
+                                                                settings.unsafehttp,
+                                                                settings.silentmode,
+                                                                &httpcodeconfirmchange);
+                parse_httpcode_status(httpcodeconfirmchange, db, urlnr);
 
                 if (is_valid_ipv4_addr(ipaddrconfirmchange) != 1) {
                         //free(ipaddrnowconfirm);  is const

@@ -24,6 +24,7 @@
 #include <time.h>
 #include <sqlite3.h>
 
+#define MAXLENURL          1023
 
 int create_table_ipservice(sqlite3 *db, bool verbosemode)
 {
@@ -56,6 +57,11 @@ int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, b
 {
         if (type < 0 || type > 2) {
                 exit(EXIT_FAILURE);
+        }
+        
+        if (strlen(url) >= MAXLENURL) {
+            printf("url too long.\n");
+            return 1;
         }
 
         int retcode;
@@ -194,7 +200,6 @@ int get_config_value_int(sqlite3 *db, char * name)
 const char * get_config_value_str(sqlite3 *db, char * name)
 {
         const char * value_str = NULL;
-        //int retcode = 0;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
                            "SELECT `valuestr` FROM `config` \
