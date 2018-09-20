@@ -98,7 +98,6 @@ Compiling the binary yourself can create a more optimized binary for the process
 
 ###### What features still needs to be implemented?
 TODO's:
- - Added support for a SQLlite database.
  - Allow to temporary disable a public ip service instead of avoiding forever.
 
 

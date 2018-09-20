@@ -22,8 +22,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <curl/curl.h>
 #include <arpa/inet.h>
+#include <curl/curl.h>
 #include <sqlite3.h>
 #include "db.h"
 
@@ -32,9 +32,21 @@
 #define PROGRAMWEBSITE     " (+https://github.com/D9ping/PublicIpChangeDetector)"
 #define SEED_LENGTH        32
 #define IPV6_TEXT_LENGTH   34
+#define MAXNUMSECDELAY     60
 #define MAXLENPATHPOSTHOOK 1023
 #define MAXSIZEAVOIDURLNRS 4096
 typedef unsigned int       uint;
+
+
+struct Settings {
+        int secondsdelay;
+        int argnposthook;
+        bool verbosemode;
+        bool silentmode;
+        bool retryposthook;
+        bool showip;
+        bool unsafehttp;
+};
 
 
 /**
@@ -94,6 +106,7 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
                         fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
                 }
 
+                //fclose(fpavoidurlnrs);
                 return;
         }
 
@@ -104,6 +117,7 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
                         fprintf(stderr, "Error: %s too big.\n", filepathavoidurlnrs);
                 }
 
+                fclose(fpavoidurlnrs);
                 return;
         }
 
@@ -140,8 +154,7 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
 
 /**
     Get a pointer to the array with urlnr to avoid.
-    TODO: to be removed.
- */
+    TODO: to be removed. */
 void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool silentmode)
 {
         char filepathreadavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
@@ -166,14 +179,14 @@ void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool sil
         ssize_t filelength;
         size_t readlen = 0;
         char *lineavoidurlnrs;
-        filelength = getline(&lineavoidurlnrs, &readlen, fpreadavoidurlnrs) - 1;  
+        filelength = getline(&lineavoidurlnrs, &readlen, fpreadavoidurlnrs) - 1;
         fclose(fpreadavoidurlnrs);
         int numurlnrs = 0;
         int n = 0;
         const char nonumberchars[] = "   ";
         char arrnumber[3] = {' ', ' ', ' '};
         for (uint i = 0; i <= filelength; ++i) {
-                if ((lineavoidurlnrs[i] == SEPERATOR) || 
+                if ((lineavoidurlnrs[i] == SEPERATOR) ||
                     (i == filelength && lineavoidurlnrs[i] != SEPERATOR)) {
                         n = 0;
                         if (i >= 1 && strcmp(arrnumber, nonumberchars) != 0) {
@@ -264,6 +277,7 @@ int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silent
                 printf("Get array with urlnumbers to avoid.\n");
         }
 
+        // TODO: use database to get all ipservice with disabled=1.
         get_avoid_urlnrs(avoidurlnrs, maxurls, verbosemode, silentmode);
         // TODO: construct: availableurlnrs
         uint *seed = (uint *) malloc(SEED_LENGTH * sizeof(uint));
@@ -282,6 +296,7 @@ int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silent
  There is no url to use.\n");
                 }
 
+                free(seed);
                 exit(EXIT_FAILURE);
         }
 
@@ -289,6 +304,7 @@ int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silent
                 urlnr = (rand() % maxurls);
                 ++tries;
                 if (tries > maxtries) {
+                        free(seed);
                         exit(EXIT_FAILURE);
                 }
 
@@ -300,6 +316,7 @@ int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silent
                 }
         }
 
+        free(seed);
         if (needaddlasturl) {
                 add_config_value_int(db, "lasturlnr", urlnr, verbosemode);
         } else {
@@ -312,7 +329,7 @@ int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silent
 
 /**
     Strip everything in the character array from the new line character till the end
-    of the array. So str does not contain any new line character anymore. 
+    of the array. So str does not contain any new line character anymore.
 */
 void strip_on_newlinechar(char *str, int strlength)
 {
@@ -338,7 +355,7 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
         fpfileip = fopen(filepathip, "r");
         if (fpfileip == NULL) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: Could not get public ip now. Was not written.\n");
+                        fprintf(stderr, "Error: Could not get public ip from file.\n");
                 }
 
                 exit(EXIT_FAILURE);
@@ -363,20 +380,18 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
 
 
 /**
-    Download all content from a url 
-*/
-void download_file(const char *url, int urlnr, char *filepathnewdownload, bool unsafehttp, bool silentmode)
+ * Download the ip address from a ipservice.
+ * @return   result. or ip address?
+ */
+char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3 *db, int urlnr, bool unsafehttp, bool silentmode)
 {
-        /* Copy pointer of chars to fixed array */
-        char urlipservice[1024];
-        size_t urlipservice_size = sizeof(urlipservice);
-        strncpy(urlipservice, url, urlipservice_size);
-        urlipservice[urlipservice_size - 1] = '\0';
+        printf("1) urlipservice = %s\n", urlipservice);  // FIXME: unexcepted result first run.
 
+        char downloadtempfilepath[] = "/tmp/tempip.txt";
         FILE *fpdownload;
         // mode w+: truncates the file to zero length if it exists,
         // otherwise creates a file if it does not exist.
-        fpdownload = fopen(filepathnewdownload, "w+");
+        fpdownload = fopen(downloadtempfilepath, "w+");
         curl_global_init(CURL_GLOBAL_DEFAULT);
         CURL *curlsession;
         curlsession = curl_easy_init();
@@ -391,25 +406,24 @@ void download_file(const char *url, int urlnr, char *filepathnewdownload, bool u
         }
 
         curl_easy_setopt(curlsession, CURLOPT_URL, urlipservice);
-        /* Use a GET to fetch this */
         curl_easy_setopt(curlsession, CURLOPT_HTTPGET, 1L);
-        /* Write to fpdownload */
+        // Write to fpdownload
         curl_easy_setopt(curlsession, CURLOPT_WRITEDATA, fpdownload);
-        /* Default 300s, changed to max. 20 seconds to connect */
+        // Default 300s, changed to max. 20 seconds to connect
         curl_easy_setopt(curlsession, CURLOPT_CONNECTTIMEOUT, 20L);
-        /* Default timeout is 0/never. changed to 25 seconds */
+        // Default timeout is 0/never. changed to 25 seconds
         curl_easy_setopt(curlsession, CURLOPT_TIMEOUT, 25L);
-        /* Never follow redirects. */
+        // Never follow redirects.
         curl_easy_setopt(curlsession, CURLOPT_FOLLOWLOCATION, 0L);
         curl_easy_setopt(curlsession, CURLOPT_MAXREDIRS, 0L);
-        /* Resolve host name using IPv4-names only */
+        // Resolve host name using IPv4-names only
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         if (!unsafehttp) {
                 // Only allow https to be used.
                 curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         } else {
                 // Allow https and unsafe http.
-                curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, 
+                curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS,
                                  CURLPROTO_HTTPS | CURLPROTO_HTTP);
         }
 
@@ -419,21 +433,21 @@ void download_file(const char *url, int urlnr, char *filepathnewdownload, bool u
         strcat(useragent, PROGRAMVERSION);
         strcat(useragent, PROGRAMWEBSITE);
         curl_easy_setopt(curlsession, CURLOPT_USERAGENT, useragent);
-        /* Perform the request, res will get the return code */
+        // Perform the request, res will get the return code
         CURLcode res;
         res = curl_easy_perform(curlsession);
-        /* Check for errors */
+        // Check for errors
         if (res != CURLE_OK) {
                 if (!silentmode) {
-                        fprintf(stderr, 
-                                "Error: %s, url: %s\n", 
-                                curl_easy_strerror(res), 
+                        fprintf(stderr,
+                                "Error: %s, url: %s\n",
+                                curl_easy_strerror(res),
                                 urlipservice);
                 }
 
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
-                write_avoid_urlnr(urlnr, silentmode);
+                //write_avoid_urlnr(urlnr, silentmode);  TODO: replace with db.
                 exit(EXIT_FAILURE);
         }
 
@@ -441,7 +455,7 @@ void download_file(const char *url, int urlnr, char *filepathnewdownload, bool u
         curl_easy_getinfo(curlsession, CURLINFO_RESPONSE_CODE, &http_code);
 
         // Get HTTP status code.
-        /* printf("Got HTTP status code: %ld.\n", http_code); // DEBUG */
+        printf("Got HTTP status code: %ld.\n", http_code);
         switch (http_code) {
         case 420L:
         case 429L:
@@ -451,8 +465,7 @@ void download_file(const char *url, int urlnr, char *filepathnewdownload, bool u
  Avoid the current public ip address service for some time.");
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
-                // FIXME should not be avoid forever, but for some time only.
-                write_avoid_urlnr(urlnr, silentmode);
+                update_ipsevice_temporary_disable(db, urlnr);
                 exit(EXIT_FAILURE);
         case 408L:
         case 500L:
@@ -460,8 +473,8 @@ void download_file(const char *url, int urlnr, char *filepathnewdownload, bool u
         case 504L:
                 printf("Warn: used public ip address service has an error or other issue\
  (http error: %ld).\n", http_code);
-                // FIXME should not be avoid forever, but for some time only.
-                write_avoid_urlnr(urlnr, silentmode);
+                // should not be avoid forever, but for some time only.
+                update_ipsevice_temporary_disable(db, urlnr);
                 break;
         case 401L:
         case 403L:
@@ -469,7 +482,8 @@ void download_file(const char *url, int urlnr, char *filepathnewdownload, bool u
         case 410L:
                 printf("Warn: the used public ip address service has quit or does not\
  want automatic use.\nNever use this public ip service again.\n");
-                write_avoid_urlnr(urlnr, silentmode);
+                // do disable forever
+                update_ipsevice_temporary_disable(db, urlnr);
                 break;
         case 301L:
         case 302L:
@@ -487,41 +501,58 @@ void download_file(const char *url, int urlnr, char *filepathnewdownload, bool u
                         }
                 }
 
-                write_avoid_urlnr(urlnr, silentmode);
+                update_ipsevice_temporary_disable(db, urlnr);
                 break;
         }
 
-        // Cleanup, should always happen.
+        // Cleanup curl.
         curl_easy_cleanup(curlsession);
-        // Check the length of the downloaded file.
+
+        // Check the filelength of the downloaded file.
         fseek(fpdownload, 0L, SEEK_END);
         unsigned long long int downloadedfilesize = ftell(fpdownload);
-        /* printf("Downloaded file filesize: %llu bytes.\n", downloadedfilesize); // DEBUG */
         fclose(fpdownload);
+        if (!silentmode) {
+                printf("Downloaded file filesize: %llu bytes.\n", downloadedfilesize);
+        }
+
         if (downloadedfilesize == 0) {
                 if (!silentmode) {
                         fprintf(stderr, "Error: downloaded file is empty.\n");
                 }
 
                 exit(EXIT_FAILURE);
+        } else if (downloadedfilesize > 40) {
+                // More than 40 bytes.
+                if (!silentmode) {
+                        fprintf(stderr, "Error: response ip service too big.\n");
+                }
+
+                exit(EXIT_FAILURE);
         }
+
+        ipaddr = read_file_ipaddr(downloadtempfilepath, silentmode);
+        return ipaddr;
 }
 
 
 /**
-        Start program
+ * Parse the command line arguments to the settings struct.
  */
-int main(int argc, char **argv)
+struct Settings parse_commandline_args(int argc, char **argv, struct Settings settings)
 {
-        int argnposthook = -1;
-        bool retryposthook = false;
-        int secondsdelay = 0;
-        bool silentmode = false;
-        bool verbosemode = false;
+        // Set default values:
+        settings.secondsdelay = 0;
+        settings.argnposthook = 0;
+        settings.retryposthook = false;
+        settings.unsafehttp = false;
+        settings.showip = false;
+        settings.silentmode = false;
+        settings.verbosemode = false;
+
         bool argnumdelaysec = false;
         bool argposthook = false;
-        bool showip = false;
-        bool unsafehttp = false;
+        // Parse commandline arguments and set settings struct.
         for (int n = 1; n < argc; ++n) {
                 if (argnumdelaysec) {
                         argnumdelaysec = false;
@@ -529,8 +560,8 @@ int main(int argc, char **argv)
                         int lenarg = strlen(argv[n]);
                         for (int i = 0; i < lenarg; ++i) {
                                 if (!isdigit(argv[n][i])) {
-                                        if (!silentmode) {
-                                                fprintf(stderr, 
+                                        if (!settings.silentmode) {
+                                                fprintf(stderr,
                                                         "Error: invalid number of seconds delay.\n");
                                         }
 
@@ -538,41 +569,42 @@ int main(int argc, char **argv)
                                 }
                         }
 
-                        secondsdelay = atoi(argv[n]);
+                        settings.secondsdelay = atoi(argv[n]);
                         continue;
                 } else if (argposthook) {
                         argposthook = false;
                         // Check length posthook
                         if (strlen(argv[n]) > MAXLENPATHPOSTHOOK) {
-                                if (!silentmode) {
+                                if (!settings.silentmode) {
                                         fprintf(stderr, "Error: posthook command too long.\n");
                                 }
 
                                 exit(EXIT_FAILURE);
                         }
 
-                        // For now, if multiple posthook's are provided override the command with last posthook command.
-                        argnposthook = n;
+                        // For now, if multiple posthook's are provided
+                        // override the command with last posthook command.
+                        settings.argnposthook = n;
                         continue;
                 }
 
                 if (strcmp(argv[n], "--posthook") == 0) {
                         argposthook = true;
-                } else if (strcmp(argv[n], "--retryposthook") == 0) {
-                        retryposthook = true;
-                } else if (strcmp(argv[n], "--showip") == 0) {
-                        showip = true;
-                } else if (strcmp(argv[n], "--unsafehttp") == 0) {
-                        unsafehttp = true;
                 } else if (strcmp(argv[n], "--delay") == 0) {
                         argnumdelaysec = true;
+                } else if (strcmp(argv[n], "--retryposthook") == 0) {
+                        settings.retryposthook = true;
+                } else if (strcmp(argv[n], "--showip") == 0) {
+                        settings.showip = true;
+                } else if (strcmp(argv[n], "--unsafehttp") == 0) {
+                        settings.unsafehttp = true;
                 } else if (strcmp(argv[n], "--failsilent") == 0) {
-                        silentmode = true;
+                        settings.silentmode = true;
                 } else if (strcmp(argv[n], "--version") == 0) {
                         printf("%s %s\n", PROGRAMNAME, PROGRAMVERSION);
                         exit(EXIT_SUCCESS);
                 } else if (strcmp(argv[n], "-v") == 0 || strcmp(argv[n], "--verbose") == 0) {
-                        verbosemode = true;
+                        settings.verbosemode = true;
                 } else if (strcmp(argv[n], "-h") == 0 || strcmp(argv[n], "--help") == 0) {
                         printf("--posthook      The script or program to run on public IPv4 address change.\n\
                 Put the command between quotes. Spaces in path are currently not supported.\n");
@@ -586,112 +618,136 @@ int main(int argc, char **argv)
                         printf("-v --verbose    Run in verbose mode, output what this program does.\n");
                         printf("-h --help       Print this help message.\n");
                         exit(EXIT_SUCCESS);
-                } else if (!silentmode) {
+                } else if (!settings.silentmode) {
                         fprintf(stderr, "Ignore unknown argument \"%s\".\n", argv[n]);
                 }
         }
 
-        if (secondsdelay > 0 && secondsdelay < 60) {
-                if (verbosemode) {
-                        printf("Delay %d seconds.\n", secondsdelay);
+        return settings;
+}
+
+
+int main(int argc, char **argv)
+{
+        struct Settings settings;
+        settings = parse_commandline_args(argc, argv, settings);
+
+        /*
+        if (settings.verbosemode) {
+                // Display settings
+                printf(" --- Current program settings --- \n");
+                printf("settings.verbosemode = %d\n", settings.verbosemode);
+                printf("settings.secondsdelay = %d\n", settings.secondsdelay);
+                printf("settings.showip = %d\n", settings.showip);
+                printf("settings.silentmode = %d\n", settings.silentmode);
+                printf("settings.unsafehttp = %d\n", settings.unsafehttp);
+                printf("settings.retryposthook = %d\n", settings.retryposthook);
+                printf("settings.argnposthook = %d\n", settings.argnposthook);
+                if (settings.argnposthook > 1) {
+                        printf("posthook = '%s'\n", argv[settings.argnposthook]);
                 }
 
-                sleep(secondsdelay);
+                printf(" --------------------------------- \n");
+        }
+        */
+
+        if (settings.secondsdelay > 0 && settings.secondsdelay < 60) {
+                if (settings.verbosemode) {
+                        printf("Delay %d seconds.\n", settings.secondsdelay);
+                }
+
+                sleep(settings.secondsdelay);
+        } else if (settings.secondsdelay >= MAXNUMSECDELAY && !settings.silentmode) {
+            fprintf(stderr, "Ingoring secondsdelay. secondsdelay has to be less than %d seconds.\n", MAXNUMSECDELAY);
         }
 
         bool dbsetup = false;
         if (access("data.db", F_OK) == -1 ) {
                 dbsetup = true;
-                if (verbosemode) {
+                if (settings.verbosemode) {
                         printf("data.db does not exists.\n");
                 }
         }
 
         /* Setup database connection */
         sqlite3 *db;
-        char *errormsg = 0;
         int rc;
         rc = sqlite3_open("data.db", &db);
         if (rc) {
                 fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
                 return(0);
-        } else {
-                fprintf(stderr, "Opened database successfully\n");
+        } else if (settings.verbosemode) {
+                printf("Opened database successfully.\n");
         }
 
-        /* does database file exists? */
         if (dbsetup) {
-                create_table_ipservice(db, verbosemode);
-                create_table_config(db, verbosemode);
-                add_config_value_int(db, "lasturlnr", -2, verbosemode);
+                create_table_ipservice(db, settings.verbosemode);
+                create_table_config(db, settings.verbosemode);
+                add_config_value_int(db, "lasturlnr", -2, settings.verbosemode);
                 /* added default ipservice records */
-                add_ipservice(db, 0, "https://ipinfo.io/ip", false, 2, verbosemode);
-                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, 2, verbosemode);
-                add_ipservice(db, 2, "https://wtfismyip.com/text", false, 2, verbosemode);
-                add_ipservice(db, 3, "https://v4.ident.me/", false, 2, verbosemode);
-                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, 2, verbosemode);
-                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, 2, verbosemode);
-                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, 2, verbosemode);
-                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, 2, verbosemode);
-                add_ipservice(db, 8, "https://l2.io/ip", false, 2, verbosemode);
-                add_ipservice(db, 9, "https://www.trackip.net/ip", false, 2, verbosemode);
-                add_ipservice(db, 10, "https://ip4.seeip.org/", false, 2, verbosemode);
-                add_ipservice(db, 11, "https://locate.now.sh/ip", false, 2, verbosemode);
-                add_ipservice(db, 12, "https://tnx.nl/ip", false, 2, verbosemode);
-                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, 2, verbosemode);
-                add_ipservice(db, 14, "https://ip4.seeip.org/", false, 2, verbosemode);
-                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, 1, verbosemode);
-                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, 1, verbosemode);
-                add_ipservice(db, 17, "http://myexternalip.com/raw", false, 1, verbosemode);
-                add_ipservice(db, 18, "http://ipecho.net/plain", false, 1, verbosemode);
-                add_ipservice(db, 19, "http://plain-text-ip.com/", false, 1, verbosemode);
+                add_ipservice(db, 0, "https://ipinfo.io/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, 2, settings.verbosemode);
+                add_ipservice(db, 2, "https://wtfismyip.com/text", false, 2, settings.verbosemode);
+                add_ipservice(db, 3, "https://v4.ident.me/", false, 2, settings.verbosemode);
+                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, 2, settings.verbosemode);
+                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, 2, settings.verbosemode);
+                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, 2, settings.verbosemode);
+                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, 2, settings.verbosemode);
+                add_ipservice(db, 8, "https://l2.io/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 9, "https://www.trackip.net/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 10, "https://ip4.seeip.org/", false, 2, settings.verbosemode);
+                add_ipservice(db, 11, "https://locate.now.sh/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 12, "https://tnx.nl/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, 2, settings.verbosemode);
+                add_ipservice(db, 14, "https://ip4.seeip.org/", false, 2, settings.verbosemode);
+                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 17, "http://myexternalip.com/raw", false, 1, settings.verbosemode);
+                add_ipservice(db, 18, "http://ipecho.net/plain", false, 1, settings.verbosemode);
+                add_ipservice(db, 19, "http://plain-text-ip.com/", false, 1, settings.verbosemode);
         }
 
         int maxurls = get_count_ipservices(db);
-        char filepathipnow[] = "/tmp/ipnow.txt";
-        char filepathipwas[] = "/tmp/ipwas.txt";
-
-        int urlnr = get_new_random_urlnr(db, maxurls, verbosemode, silentmode);
-        const char *url;
-        url = get_url_ipservice(db, urlnr);
-        if (verbosemode) {
-                printf("Use: %s for getting public IPv4 address.\n", url);
+        int urlnr = get_new_random_urlnr(db, maxurls, settings.verbosemode, settings.silentmode);
+        char *urlipservice;
+        urlipservice = get_url_ipservice(db, urlnr);
+        if (settings.verbosemode) {
+                printf("Use: %s for getting public IPv4 address.\n", urlipservice);
         }
 
-        download_file(url, urlnr, filepathipnow, unsafehttp, silentmode);
-        if (verbosemode) {
-                printf("Download finished.\n");
-        }
+        char *ipaddrnow;
+        ipaddrnow = download_ipaddr_ipservice(ipaddrnow, urlipservice, db, urlnr, settings.unsafehttp, settings.silentmode);
+        printf("ipaddrnow = %s\n", ipaddrnow);
+        //printf("res = %d\n", resdownloadip);
+        //update_config_value_str(db, "ipnow", ipaddrstr);
 
-        char *ipaddrstr;
-        ipaddrstr = read_file_ipaddr(filepathipnow, silentmode);
-        if (is_valid_ipv4_addr(ipaddrstr) != 1) {
-                free(ipaddrstr);
-                if (!silentmode) {
-                        fprintf(stderr, "Error: got invalid IP(IPv4) address from %s.\n", url);
+        if (is_valid_ipv4_addr(ipaddrnow) != 1) {
+                free(ipaddrnow);
+                if (!settings.silentmode) {
+                        fprintf(stderr, "Error: got invalid IP(IPv4) address '%s' from '%s'.\n", ipaddrnow, urlipservice);
                 }
 
-                unlink(filepathipnow);
                 exit(EXIT_FAILURE);
         }
 
-        char *previpaddrstr;
-        if (access(filepathipwas, F_OK) == -1 ) {
-                // PublicIpChangeDetector has not been runned before.
-                const char *confirmurl;
-                urlnr = get_new_random_urlnr(db, maxurls, verbosemode, silentmode);
-                confirmurl = get_url_ipservice(db, urlnr);
-                if (verbosemode) {
-                        printf("First run. Confirm current public ip result.\n");
-                        printf("Use: %s to confirm public ip address.\n", confirmurl);
+        char *ipaddrconfirm;
+        if (is_config_exists(db, "ipwas") == 0) {
+                if (settings.verbosemode) {
+                        printf("%s not been runned before.\n", PROGRAMNAME);
                 }
 
-                download_file(confirmurl, urlnr, filepathipnow, unsafehttp, silentmode);
-                previpaddrstr = read_file_ipaddr(filepathipnow, silentmode);
-                if (is_valid_ipv4_addr(previpaddrstr) != 1) {
-                        free(previpaddrstr);
-                        unlink(filepathipnow);
-                        if (!silentmode) {
+                const char *confirmurl;
+                urlnr = get_new_random_urlnr(db, maxurls, settings.verbosemode, settings.silentmode);
+                confirmurl = get_url_ipservice(db, urlnr);
+                if (settings.verbosemode) {
+                        printf("Using %s to confirm current public ip address with.\n", confirmurl);
+                }
+
+                ipaddrconfirm = download_ipaddr_ipservice(ipaddrconfirm, urlipservice, db, urlnr, settings.unsafehttp, settings.silentmode);
+                if (is_valid_ipv4_addr(ipaddrconfirm) != 1) {
+                        free(ipaddrconfirm);
+                        //unlink(filepathipnow);
+                        if (!settings.silentmode) {
                                 fprintf(stderr, "Error: invalid IP(IPv4) address for first\
  run confirmation from %s.\n", confirmurl);
                         }
@@ -699,72 +755,81 @@ int main(int argc, char **argv)
                         exit(EXIT_FAILURE);
                 }
 
-                if (strcmp(ipaddrstr, previpaddrstr) != 0) {
-                        if (!silentmode) {
+                // Check for ip address different between the two requuested services on first run.
+                if (strcmp(ipaddrnow, ipaddrconfirm) != 0) {
+                        if (!settings.silentmode) {
                                 fprintf(stderr, "Alert: one of the ip address services\
  couldhave lied to us.\nTry getting public ip again on next run.\n");
-                                fprintf(stderr, "IPv4: %s from %s.\n", ipaddrstr, url);
-                                fprintf(stderr, "IPv4: %s from %s.\n", previpaddrstr,
+                                fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
+                                fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm,
                                         confirmurl);
                         }
 
                         exit(EXIT_FAILURE);
                 }
         } else {
-                previpaddrstr = read_file_ipaddr(filepathipwas, silentmode);
+                if (settings.verbosemode) {
+                        printf("%s has been runned before.\n", PROGRAMNAME);
+                }
+
+                ipaddrconfirm = get_config_value_str(db, "ipwas");
         }
 
-        if (strcmp(ipaddrstr, previpaddrstr) != 0) {
-                if (verbosemode) {
+        if (strcmp(ipaddrnow, ipaddrconfirm) != 0) {
+                // Ip address has changed.
+                if (settings.verbosemode) {
                         printf("Public ip change detected, ip address different from last\
  run.\n");
                 }
 
-                urlnr = get_new_random_urlnr(db, maxurls, verbosemode, silentmode);
-                const char *confirmurl;
-                confirmurl = get_url_ipservice(db, urlnr);
-                if (verbosemode) {
-                        printf("Public ip service %s is used to confirm ip address\n", confirmurl);
+                urlnr = get_new_random_urlnr(db, maxurls, settings.verbosemode, settings.silentmode);
+                const char *confirmchangeurl;
+                confirmchangeurl = get_url_ipservice(db, urlnr);
+                if (settings.verbosemode) {
+                        printf("Public ip service %s is used to confirm ip address\n", confirmchangeurl);
                 }
 
-                download_file(confirmurl, urlnr, filepathipnow, unsafehttp, silentmode);
-                char *confirmipaddrstr;
-                confirmipaddrstr = read_file_ipaddr(filepathipnow, silentmode);
-                if (is_valid_ipv4_addr(confirmipaddrstr) != 1) {
-                        free(confirmipaddrstr);
-                        if (!silentmode) {
+                char *ipaddrconfirmchange;
+                ipaddrconfirmchange = download_ipaddr_ipservice(ipaddrconfirmchange, urlipservice, db, urlnr,
+                                                                settings.unsafehttp, settings.silentmode);
+
+                if (is_valid_ipv4_addr(ipaddrconfirmchange) != 1) {
+                        //free(ipaddrnowconfirm);  is const
+                        if (!settings.silentmode) {
                                 fprintf(stderr, "Error: invalid IP(IPv4) address returned\
- from %s as confirm public ip service.\n", confirmurl);
+ from %s as confirm public ip service.\n", confirmchangeurl);
                         }
 
-                        unlink(filepathipnow);
-                        if (showip) {
-                                printf("%s", ipaddrstr);
+                        if (settings.showip) {
+                                // Show old valid ip address.
+                                printf("%s", ipaddrconfirm);
                         }
 
                         exit(EXIT_FAILURE);
                 }
 
-                if (strcmp(confirmipaddrstr, previpaddrstr) == 0) {
-                        if (!silentmode) {
+                // Check if new ip address with different service is the same new ip address.
+                if (strcmp(ipaddrnow, ipaddrconfirmchange) == 0) {
+                        if (!settings.silentmode) {
                                 fprintf(stderr, "Alert: the ip address service could have\
  lied to us.\nIt's now unknown if public ip address has actually changed.\n");
                         }
 
-                        if (showip) {
-                                printf("%s", ipaddrstr);
+                        if (settings.showip) {
+                                // Show old ip address.
+                                printf("%s", ipaddrconfirm);
                         }
 
                         exit(EXIT_FAILURE);
                 }
 
-                if (verbosemode) {
-                        printf("Execute posthook command with \"%s\" as argument.\n", ipaddrstr);
+                if (settings.verbosemode) {
+                        printf("Execute posthook command with \"%s\" as argument.\n", ipaddrnow);
                 }
 
-                if (argnposthook < 1) {
+                if (settings.argnposthook <= 1) {
                         //cmdposthook[] = "/bin/sh ./update_ip_dns.sh ";
-                        if (!silentmode) {
+                        if (!settings.silentmode) {
                                 fprintf(stderr, "Error: no posthook provided.\n");
                         }
 
@@ -772,56 +837,61 @@ int main(int argc, char **argv)
                 }
 
                 char cmdposthook[MAXLENPATHPOSTHOOK + 1];
-                if (strchr(ipaddrstr, '"') != NULL) {
-                        if (!silentmode) {
-                                fprintf(stderr, "Error: quote in ip address.\n");
+                if (strchr(ipaddrnow, '"') != NULL) {
+                        if (!settings.silentmode) {
+                                fprintf(stderr, "Error: quote(s) in ip address.\n");
                         }
 
                         exit(EXIT_FAILURE);
-                } else if (strchr(argv[argnposthook], '"') != NULL) {
-                        if (!silentmode) {
+                } else if (strchr(argv[settings.argnposthook], '"') != NULL) {
+                        if (!settings.silentmode) {
                                 fprintf(stderr, "Error: quote in posthook command.\n");
                         }
 
                         exit(EXIT_FAILURE);
                 }
 
-                snprintf(cmdposthook, MAXLENPATHPOSTHOOK, "\"%s\" \"%s\"", argv[argnposthook], ipaddrstr);
+                snprintf(cmdposthook, MAXLENPATHPOSTHOOK, "\"%s\" \"%s\"", argv[settings.argnposthook], ipaddrnow);
                 /* printf("cmdposthook = [ %s ]\n", cmdposthook); // DEBUG */
                 unsigned short exitcode = system(cmdposthook);
                 if (exitcode != 0) {
-                        if (!silentmode) {
+                        if (!settings.silentmode) {
                                 fprintf(stderr,
                                         "Error: script returned error (exitcode %hu).\n",
                                         exitcode);
                         }
 
-                        if (retryposthook) {
-                                if (showip) {
-                                        printf("%s", ipaddrstr);
+                        if (settings.retryposthook) {
+                                if (settings.showip) {
+                                        // Do show new ip address.
+                                        printf("%s", ipaddrnow);
                                 }
 
-                                // Run posthook next time again on posthook error
+                                // Run posthook next time again because ipwas is not updated to new ip in database.
                                 exit(EXIT_FAILURE);
                         }
                 }
-        } else if (verbosemode) {
-                printf("Public ip is the same as from last run.\n");
-        }
 
-        /* Rename file */
-        int ret = rename(filepathipnow, filepathipwas);
-        if (ret != 0) {
-                fprintf(stderr, "Error: unable to rename %s to %s.\n", filepathipnow, filepathipwas);
-                if (showip) {
-                        printf("%s", ipaddrstr);
+                if (is_config_exists(db, "ipwas") == 0) {
+                        add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
+                } else {
+                        update_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
                 }
 
-                exit(EXIT_FAILURE);
-        }
+                if (settings.showip) {
+                        // Show current ip address.
+                        printf("%s", ipaddrnow);
+                }
+        } else if (settings.verbosemode) {
+                printf("Public ip is the same as the public ip from last run.\n");
+                if (settings.showip) {
+                        // Show current ip address.
+                        printf("%s", ipaddrnow);
+                }
 
-        if (showip) {
-                printf("%s", ipaddrstr);
+                if (is_config_exists(db, "ipwas") == 0) {
+                        add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
+                }
         }
 
         return EXIT_SUCCESS;

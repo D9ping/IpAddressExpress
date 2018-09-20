@@ -48,16 +48,12 @@ int create_table_ipservice(sqlite3 *db, bool verbosemode)
 
 /**
         Add a ipservice to the ipservice database table.
-        ipservice: 
+        ipservice:
         if disabled is true then the ipservice has a pernament error and should not be used.
         type = 0 for dns(not supported), type = 1 for http, type = 2 for https
  */
-int add_ipservice(sqlite3 *db, int urlnr, char *url, bool disabled, int type, bool verbosemode)
+int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, bool verbosemode)
 {
-        if (disabled < 0 || disabled > 1) {
-                exit(EXIT_FAILURE);
-        }
-
         if (type < 0 || type > 2) {
                 exit(EXIT_FAILURE);
         }
@@ -90,7 +86,7 @@ int get_count_ipservices(sqlite3 *db)
         int items = 0;
         int rc = 0;
         sqlite3_stmt *stmt = NULL;
-        rc = sqlite3_prepare_v2(db, 
+        rc = sqlite3_prepare_v2(db,
                                 "SELECT COUNT(`nr`) FROM `ipservice` LIMIT 1;",
                                 1023,
                                 &stmt,
@@ -110,22 +106,22 @@ int get_count_ipservices(sqlite3 *db)
 */
 const char * get_url_ipservice(sqlite3 *db, int urlnr)
 {
-        const char *url;
+        const char *urlipservice = NULL;
         int retcode = 0;
         sqlite3_stmt *stmt = NULL;
         retcode = sqlite3_prepare_v2(db,
-                                     "SELECT `url` FROM `ipservice` WHERE `nr` = ?1 LIMIT 1;", 
+                                     "SELECT `url` FROM `ipservice` WHERE `nr` = ?1 LIMIT 1;",
                                      2047,
                                      &stmt,
                                      NULL);
         sqlite3_bind_int(stmt, 1, urlnr);
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-                url = sqlite3_column_text(stmt, 0);
+                urlipservice = sqlite3_column_text(stmt, 0);
                 break;
         }
 
         sqlite3_finalize(stmt);
-        return url;
+        return urlipservice;
 }
 
 
@@ -134,12 +130,12 @@ int update_ipsevice_temporary_disable(sqlite3 *db, int urlnr)
         int timestampnow = (int)time(NULL);
         int retcode = 0;
         sqlite3_stmt *stmt = NULL;
-        retcode = sqlite3_prepare_v2(db,
-                                     "UPDATE `ipservice` SET `disabled`= 1, `lasterroron`= ?1\
- WHERE  `nr`= ?2 LIMIT 1;", 
-                                     -1,
-                                     &stmt,
-                                     NULL);
+        sqlite3_prepare_v2(db,
+                            "UPDATE `ipservice` SET `disabled`= 1, `lasterroron`= ?1\
+ WHERE  `nr`= ?2 LIMIT 1;",
+                           -1,
+                           &stmt,
+                           NULL);
         sqlite3_bind_int(stmt, 1, timestampnow);
         sqlite3_bind_int(stmt, 2, urlnr);
         retcode = sqlite3_step(stmt);
@@ -161,7 +157,8 @@ int create_table_config(sqlite3 *db, bool verbosemode)
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db, "CREATE TABLE IF NOT EXISTS `config` ( \
  `name` TEXT, \
- `valueint` INT NOT NULL);", -1, &stmt, NULL);
+ `valueint` INT, \
+ `valuestr` TEXT );", -1, &stmt, NULL);
         retcode = sqlite3_step(stmt);
         if (retcode != SQLITE_DONE) {
                 fprintf(stderr, "Error creating config table: %s\n", sqlite3_errmsg(db));
@@ -179,7 +176,7 @@ int get_config_value_int(sqlite3 *db, char * name)
         int retcode = 0;
         sqlite3_stmt *stmt = NULL;
         retcode = sqlite3_prepare_v2(db,
-                                     "SELECT `valueint` FROM `config` WHERE `name` = ?1 LIMIT 1;", 
+                                     "SELECT `valueint` FROM `config` WHERE `name` = ?1 LIMIT 1;",
                                      -1,
                                      &stmt,
                                      NULL);
@@ -191,6 +188,28 @@ int get_config_value_int(sqlite3 *db, char * name)
 
         sqlite3_finalize(stmt);
         return value_int;
+}
+
+
+const char * get_config_value_str(sqlite3 *db, char * name)
+{
+        const char * value_str = NULL;
+        //int retcode = 0;
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db,
+                           "SELECT `valuestr` FROM `config` \
+ WHERE `name` = ?1 LIMIT 1;",
+                           -1,
+                           &stmt,
+                           NULL);
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+                value_str = sqlite3_column_text(stmt, 0);
+                break;
+        }
+
+        sqlite3_finalize(stmt);
+        return value_str;
 }
 
 
@@ -214,26 +233,91 @@ int add_config_value_int(sqlite3 *db, char * name, int value, bool verbosemode)
 }
 
 
-int update_config_value_int(sqlite3 *db, char * name, int value, bool verbosemode)
+int add_config_value_str(sqlite3 *db, char *name, char * value, bool verbosemode)
+{
+        int retcode;
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db, "INSERT INTO `config` (`name`, `valuestr`) \
+ VALUES (?1, ?2);", -1, &stmt, NULL);
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, value, -1, SQLITE_STATIC);
+        retcode = sqlite3_step(stmt);
+        if (retcode != SQLITE_DONE) {
+                fprintf(stderr, "Error storing config value: %s\n", sqlite3_errmsg(db));
+        } else if (verbosemode) {
+                fprintf(stdout, "Config: %s = %s  saved.\n", name, value);
+        }
+
+        sqlite3_finalize(stmt);
+        return retcode;
+}
+
+
+int update_config_value_int(sqlite3 *db, char * name, int valuenew, bool verbosemode)
 {
         int retcode = 0;
         sqlite3_stmt *stmt = NULL;
-        retcode = sqlite3_prepare_v2(db,
-                                     "UPDATE `config` SET `valueint`= ?1\
- WHERE  `name`= ?2 LIMIT 1;", 
-                                     -1,
-                                     &stmt,
-                                     NULL);
-        sqlite3_bind_int(stmt, 1, value);
+        sqlite3_prepare_v2(db,
+                           "UPDATE `config` SET `valueint`= ?1\
+ WHERE  `name`= ?2 LIMIT 1;",
+                          -1,
+                          &stmt,
+                          NULL);
+        sqlite3_bind_int(stmt, 1, valuenew);
         sqlite3_bind_text(stmt, 2, name, -1, SQLITE_STATIC);
         retcode = sqlite3_step(stmt);
         if (retcode != SQLITE_DONE) {
                 fprintf(stderr, "Error storing config value: %s\n", sqlite3_errmsg(db));
         } else if (verbosemode) {
-                fprintf(stdout, "Config: %s = %d  saved.\n", name, value);
+                fprintf(stdout, "Config: %s = %d  saved.\n", name, valuenew);
         }
 
         sqlite3_finalize(stmt);
         return retcode;
+}
+
+
+int update_config_value_str(sqlite3 *db, char * name, const char * valuenew, bool verbosemode)
+{
+        int retcode;
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db,
+                           "UPDATE `config` SET `valuestr`= ?1\
+ WHERE  `name`= ?2 LIMIT 1;",
+                           -1,
+                           &stmt,
+                           NULL);
+        sqlite3_bind_text(stmt, 1, valuenew, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, name, -1, SQLITE_STATIC);
+        retcode = sqlite3_step(stmt);
+        if (retcode != SQLITE_DONE) {
+                fprintf(stderr, "Error storing config value: %s\n", sqlite3_errmsg(db));
+        } else if (verbosemode) {
+                fprintf(stdout, "Config: %s = %s  saved.\n", name, valuenew);
+        }
+
+        sqlite3_finalize(stmt);
+        return retcode;
+}
+
+
+int is_config_exists(sqlite3 *db, char *name)
+{
+        int value_int = 0;
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db,
+                           "SELECT COUNT(`name`) FROM `config` \
+ WHERE `name` = ?1 LIMIT 1;",
+                           -1,
+                           &stmt,
+                           NULL);
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+                value_int = sqlite3_column_int(stmt, 0);
+                break;
+        }
+
+        sqlite3_finalize(stmt);
+        return value_int;
 }
 
