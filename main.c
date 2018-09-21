@@ -917,21 +917,16 @@ int main(int argc, char **argv)
                 } else {
                         update_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
                 }
-
-                if (settings.showip) {
-                        // Show current ip address.
-                        printf("%s", ipaddrnow);
-                }
         } else if (settings.verbosemode) {
                 printf("Public ip is the same as the public ip from last run.\n");
-                if (settings.showip) {
-                        // Show current ip address.
-                        printf("%s", ipaddrnow);
-                }
-
                 if (is_config_exists(db, "ipwas") == 0) {
                         add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
                 }
+        }
+
+        if (settings.showip) {
+                // Show current ip address.
+                printf("%s", ipaddrnow);
         }
 
         return EXIT_SUCCESS;
