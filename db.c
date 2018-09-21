@@ -58,9 +58,9 @@ int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, b
         if (type < 0 || type > 2) {
                 exit(EXIT_FAILURE);
         }
-        
+
         if (strlen(url) >= MAXLENURL) {
-            printf("url too long.\n");
+            printf("Url too long, maximum %d character allowed.\n", MAXLENURL);
             return 1;
         }
 
@@ -112,7 +112,10 @@ int get_count_ipservices(sqlite3 *db)
 */
 const char * get_url_ipservice(sqlite3 *db, int urlnr)
 {
-        const char *urlipservice = NULL;
+        const char *url;
+        char *urlipservice;
+        urlipservice = malloc(MAXLENURL * sizeof(char));
+
         int retcode = 0;
         sqlite3_stmt *stmt = NULL;
         retcode = sqlite3_prepare_v2(db,
@@ -122,10 +125,11 @@ const char * get_url_ipservice(sqlite3 *db, int urlnr)
                                      NULL);
         sqlite3_bind_int(stmt, 1, urlnr);
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-                urlipservice = sqlite3_column_text(stmt, 0);
+                url = sqlite3_column_text(stmt, 0);
                 break;
         }
 
+        strcpy(urlipservice, url);
         sqlite3_finalize(stmt);
         return urlipservice;
 }
@@ -153,6 +157,28 @@ int update_ipsevice_temporary_disable(sqlite3 *db, int urlnr)
         return retcode;
 }
 
+/*
+void get_ipservices(sqlite3 *db, int disabled)
+{
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db,
+                                "SELECT `nr`, `url` FROM `ipservice` WHERE `disabled` = ?1;",
+                                -1,
+                                &stmt,
+                                NULL);
+        sqlite3_bind_int(stmt, 1, disabled);
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+                int nr;
+                char * url;
+                nr = sqlite3_column_int(stmt, 0);
+                url = sqlite3_column_text(stmt, 0);
+        }
+
+        sqlite3_finalize(stmt);
+
+        return resultset..;
+}
+*/
 
 /**
         Create config table.

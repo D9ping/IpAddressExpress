@@ -27,16 +27,17 @@
 #include <sqlite3.h>
 #include "db.h"
 
-#define PROGRAMNAME        "PublicIpChangeDetector"
-#define PROGRAMVERSION     "0.5.0-beta"
-#define PROGRAMWEBSITE     " (+https://github.com/D9ping/PublicIpChangeDetector)"
-#define SEED_LENGTH        32
-#define IPV6_TEXT_LENGTH   34
-#define MAXNUMSECDELAY     60
-#define MAXLENPATHPOSTHOOK 1023
-#define MAXLENURL          1023
-#define MAXSIZEAVOIDURLNRS 4096
-typedef unsigned int       uint;
+#define PROGRAMNAME           "PublicIpChangeDetector"
+#define PROGRAMVERSION        "0.5.0-beta"
+#define PROGRAMWEBSITE        " (+https://github.com/D9ping/PublicIpChangeDetector)"
+#define SEED_LENGTH           32
+#define IPV6_TEXT_LENGTH      34
+#define MAXNUMSECDELAY        60
+#define MAXSIZEIPADDRDOWNLOAD 20
+#define MAXLENPATHPOSTHOOK    1023
+#define MAXLENURL             1023
+#define MAXSIZEAVOIDURLNRS    4096
+typedef unsigned int          uint;
 
 
 struct Settings {
@@ -155,7 +156,8 @@ void write_avoid_urlnr(int urlnr, bool silentmode)
 
 /**
     Get a pointer to the array with urlnr to avoid.
-    TODO: to be removed. */
+    TODO: to be removed.
+*/
 void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool silentmode)
 {
         char filepathreadavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
@@ -385,7 +387,6 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
  */
 void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
 {
-        printf("parse_httpcode_status, httpcode = %d.\n", httpcode);
         switch (httpcode) {
         case 420L:
         case 429L:
@@ -410,7 +411,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 410L:
                 printf("Warn: the used public ip address service has quit or does not\
  want automatic use.\nNever use this public ip service again.\n");
-                // do disable forever
+                // do disable forever.
                 update_ipsevice_temporary_disable(db, urlnr);
                 break;
         case 301L:
@@ -418,14 +419,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 308L:
                 printf("Warn: public IP address service has changed url and is redirecting\
  (http status code: %d).\n", httpcode);
- /*
-                printf("Incorrect url: %s\n", urlipservice);
-                if (strcmp(followurl, urlipservice) != 0) {
-                        printf("Wants to redirect to: %s\n", followurl);
-                } else {
-                        printf("Redirect to same page.\n");
-                }
-*/
+                // do disable forever.
                 update_ipsevice_temporary_disable(db, urlnr);
                 break;
         }
@@ -439,16 +433,8 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
 char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3 *db, int urlnr,
                                  bool unsafehttp, bool silentmode, int * httpcodestatus)
 {
-        long int lenurlipservice = strlen(urlipservice);
-        if (lenurlipservice > MAXLENURL) {
-                printf("Url too long.\n");
-                exit(1);
-        }
-
-        char *url = NULL;
-        url = malloc(MAXLENURL * sizeof(char));
-        strcpy(url, urlipservice);
-        char downloadtempfilepath[] = "/tmp/tempip.txt";
+        char * downloadtempfilepath = malloc(20 * sizeof(char));
+        downloadtempfilepath = "/tmp/tempip.txt";
         FILE *fpdownload;
         // mode w+: truncates the file to zero length if it exists,
         // otherwise creates a file if it does not exist.
@@ -466,7 +452,7 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                 exit(EXIT_FAILURE);
         }
 
-        curl_easy_setopt(curlsession, CURLOPT_URL, url);
+        curl_easy_setopt(curlsession, CURLOPT_URL, urlipservice);
         curl_easy_setopt(curlsession, CURLOPT_HTTPGET, 1L);
         // Write to fpdownload
         curl_easy_setopt(curlsession, CURLOPT_WRITEDATA, fpdownload);
@@ -516,21 +502,21 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         curl_easy_getinfo(curlsession, CURLINFO_RESPONSE_CODE, &httpcode);
 
         // Check the filelength of the downloaded file.
+        fclose(fpdownload);
+
+        fpdownload = fopen(downloadtempfilepath, "r");
         fseek(fpdownload, 0L, SEEK_END);
         unsigned long long int downloadedfilesize = ftell(fpdownload);
         fclose(fpdownload);
-        if (!silentmode) {
-                printf("Downloaded file filesize: %llu bytes.\n", downloadedfilesize);
-        }
 
-        char *followurl = NULL;
-        curl_easy_getinfo(curlsession, CURLINFO_REDIRECT_URL, &followurl);
+        // TODO: redirect url, print it?
+        //char *followurl = NULL;
+        //curl_easy_getinfo(curlsession, CURLINFO_REDIRECT_URL, &followurl);
 
         // Cleanup curl.
         curl_easy_cleanup(curlsession);
 
-        // Get HTTP status code.
-        printf("download_ipaddr_ipservice, httpcode = %d.\n", httpcode);
+        // Set HTTP status code.
         *httpcodestatus = httpcode;
 
         // Check filesize
@@ -540,8 +526,7 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                 }
 
                 exit(EXIT_FAILURE);
-        } else if (downloadedfilesize > 40) {
-                // More than 40 bytes.
+        } else if (downloadedfilesize > MAXSIZEIPADDRDOWNLOAD) {
                 if (!silentmode) {
                         fprintf(stderr, "Error: response ip service too big.\n");
                 }
@@ -549,7 +534,6 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                 exit(EXIT_FAILURE);
         }
 
-        // Did it got set?
         ipaddr = read_file_ipaddr(downloadtempfilepath, silentmode);
 
         //return http_code;
@@ -758,7 +742,7 @@ int main(int argc, char **argv)
         char *ipaddrconfirm;
         if (is_config_exists(db, "ipwas") == 0) {
                 if (settings.verbosemode) {
-                        printf("%s not been runned before.\n", PROGRAMNAME);
+                        printf("First run of %s.\n", PROGRAMNAME);
                 }
 
                 const char *confirmurl;
@@ -801,10 +785,6 @@ int main(int argc, char **argv)
                         exit(EXIT_FAILURE);
                 }
         } else {
-                if (settings.verbosemode) {
-                        printf("%s has been runned before.\n", PROGRAMNAME);
-                }
-
                 ipaddrconfirm = get_config_value_str(db, "ipwas");
         }
 
@@ -918,7 +898,7 @@ int main(int argc, char **argv)
                         update_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
                 }
         } else if (settings.verbosemode) {
-                printf("Public ip is the same as the public ip from last run.\n");
+                printf("The current public ip is the same as the public ip from last ipservice.\n");
                 if (is_config_exists(db, "ipwas") == 0) {
                         add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
                 }

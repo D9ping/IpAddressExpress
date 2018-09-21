@@ -12,6 +12,9 @@ const char * get_url_ipservice(sqlite3 *db, int urlnr);
 
 int update_ipsevice_temporary_disable(sqlite3 *db, int urlnr);
 
+// TODO:
+//void get_ipservices(sqlite3 *db, int disabled);
+
 
 int create_table_config(sqlite3 *db, bool verbosemode);
 
