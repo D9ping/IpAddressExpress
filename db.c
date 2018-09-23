@@ -88,7 +88,7 @@ int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, b
 /**
         Get the number of ipservices in the ipservice table.
 */
-int get_count_ipservices(sqlite3 *db)
+int get_count_all_ipservices(sqlite3 *db)
 {
         int cntall = 0;
         sqlite3_stmt *stmt = NULL;
@@ -108,16 +108,16 @@ int get_count_ipservices(sqlite3 *db)
 }
 
 
-int get_count_available_ipservices(sqlite3 *db)
+int get_count_available_ipservices(sqlite3 *db, int allowedprotocoltypes)
 {
         const int * cntavailable;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
-                           "SELECT COUNT(`nr`) FROM `ipservice` WHERE `disabled` = 0 LIMIT 1;",
+                           "SELECT COUNT(`nr`) FROM `ipservice` WHERE `disabled` = 0 AND type >= ?1 LIMIT 1;",
                            -1,
                            &stmt,
                            NULL);
-
+        sqlite3_bind_int(stmt, 1, allowedprotocoltypes);
         if (sqlite3_step(stmt) == SQLITE_ROW) {
                 cntavailable = sqlite3_column_int(stmt, 0);
         } else {
@@ -192,16 +192,17 @@ int update_disabled_ipsevice(sqlite3 *db, int urlnr, bool addtimestamp)
 }
 
 
-void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled)
+void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled, int allowedprotocoltypes)
 {
         int i = 0;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
-                            "SELECT `nr` FROM `ipservice` WHERE `disabled` = ?1;",
+                            "SELECT `nr` FROM `ipservice` WHERE `disabled` = ?1 AND type >= ?2;",
                             -1,
                             &stmt,
                             NULL);
         sqlite3_bind_int(stmt, 1, disabled);
+        sqlite3_bind_int(stmt, 2, allowedprotocoltypes);
         while (sqlite3_step(stmt) == SQLITE_ROW) {
                 int nr;
                 nr = sqlite3_column_int(stmt, 0);

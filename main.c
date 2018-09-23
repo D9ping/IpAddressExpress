@@ -64,47 +64,13 @@ int is_valid_ipv4_addr(char *ipv4addr)
 
 
 /**
-    Is an number with a number array.
-    @return 1 if it's within the array and 0 if the number not in the array.
-            And return 2 if array is filled with all maxurls urlnr's.
-
-int is_num_within_numarr(int numarr[], int maxurls, int needlenum)
-{
-        for (int i = 0; i < maxurls; ++i) {
-                if (numarr[i] == -1) {
-                        break;
-                } else {
-                        if (i == maxurls) {
-                                return 2;
-                        }
-                }
-
-                if (numarr[i] == needlenum) {
-                        return 1;
-                }
-        }
-
-        return 0;
-}
-*/
-
-/**
-    Generate a secure random number between 0 and maxurls.
-    Write the random number to disk and do not use the same value next time.
+    Get a new urlnr that is available to choice.
     @return A random number between 0 and maxurls.
 */
-int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silentmode)
+int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool verbosemode, bool silentmode)
 {
         if (verbosemode) {
-                printf("Choice random urlnr.\n");
-        }
-
-        if (maxurls < 2) {
-                if (!silentmode) {
-                        fprintf(stderr, "Error: maxurls needs to be 2 or higher.\n");
-                }
-
-                exit(EXIT_FAILURE);
+                printf("Choose random urlnr.\n");
         }
 
         bool needaddlasturl = false;
@@ -124,9 +90,14 @@ int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silent
                 exit(EXIT_FAILURE);
         }
 
-        const int numavailableipservices = get_count_available_ipservices(db);
+        int allowedprotocoltypes = 1;
+        if (unsafehttp) {
+                allowedprotocoltypes = 0;
+        }
+
+        const int numavailableipservices = get_count_available_ipservices(db, allowedprotocoltypes);
         int availableurlnrs[numavailableipservices];
-        get_urlnrs_ipservices(db, availableurlnrs, 0);
+        get_urlnrs_ipservices(db, availableurlnrs, 0, allowedprotocoltypes);
 
         /*
         // For debugging print availableurlnrs array.
@@ -281,6 +252,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
 char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3 *db, int urlnr,
                                  bool unsafehttp, bool silentmode, int * httpcodestatus)
 {
+        //char * downloadtempfilepath;
         char * downloadtempfilepath = malloc(20 * sizeof(char));
         downloadtempfilepath = "/tmp/tempip.txt";
         FILE *fpdownload;
@@ -288,7 +260,6 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         // otherwise creates a file if it does not exist.
         fpdownload = fopen(downloadtempfilepath, "w+");
         curl_global_init(CURL_GLOBAL_DEFAULT);
-        //CURL *curlsession;
         CURL * curlsession = curl_easy_init();
         if (!curlsession || curlsession == NULL) {
                 if (!silentmode) {
@@ -351,7 +322,6 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
 
         // Check the filelength of the downloaded file.
         fclose(fpdownload);
-
         fpdownload = fopen(downloadtempfilepath, "r");
         fseek(fpdownload, 0L, SEEK_END);
         unsigned long long int downloadedfilesize = ftell(fpdownload);
@@ -537,30 +507,37 @@ int main(int argc, char **argv)
                 create_table_config(db, settings.verbosemode);
                 add_config_value_int(db, "lasturlnr", -2, settings.verbosemode);
                 /* added default ipservice records */
-                add_ipservice(db, 0, "https://ipinfo.io/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, 2, settings.verbosemode);
-                add_ipservice(db, 2, "https://wtfismyip.com/text", false, 2, settings.verbosemode);
-                add_ipservice(db, 3, "https://v4.ident.me/", false, 2, settings.verbosemode);
-                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, 2, settings.verbosemode);
-                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, 2, settings.verbosemode);
-                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, 2, settings.verbosemode);
-                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, 2, settings.verbosemode);
-                add_ipservice(db, 8, "https://l2.io/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 9, "https://www.trackip.net/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 10, "https://ip4.seeip.org/", false, 2, settings.verbosemode);
-                add_ipservice(db, 11, "https://locate.now.sh/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 12, "https://tnx.nl/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, 2, settings.verbosemode);
-                add_ipservice(db, 14, "https://ip4.seeip.org/", false, 2, settings.verbosemode);
-                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, 1, settings.verbosemode);
-                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, 1, settings.verbosemode);
-                add_ipservice(db, 17, "http://myexternalip.com/raw", false, 1, settings.verbosemode);
-                add_ipservice(db, 18, "http://ipecho.net/plain", false, 1, settings.verbosemode);
-                add_ipservice(db, 19, "http://plain-text-ip.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 0, "https://ipinfo.io/ip", false, 1, settings.verbosemode);
+                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, 1, settings.verbosemode);
+                add_ipservice(db, 2, "https://wtfismyip.com/text", false, 1, settings.verbosemode);
+                add_ipservice(db, 3, "https://v4.ident.me/", false, 1, settings.verbosemode);
+                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, 1, settings.verbosemode);
+                add_ipservice(db, 8, "https://l2.io/ip", false, 1, settings.verbosemode);
+                add_ipservice(db, 9, "https://www.trackip.net/ip", false, 1, settings.verbosemode);
+                add_ipservice(db, 10, "https://ip4.seeip.org/", false, 1, settings.verbosemode);
+                add_ipservice(db, 11, "https://locate.now.sh/ip", false, 1, settings.verbosemode);
+                add_ipservice(db, 12, "https://tnx.nl/ip", false, 1, settings.verbosemode);
+                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, 1, settings.verbosemode);
+                add_ipservice(db, 14, "https://ip4.seeip.org/", false, 1, settings.verbosemode);
+                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, 0, settings.verbosemode);
+                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, 0, settings.verbosemode);
+                add_ipservice(db, 17, "http://myexternalip.com/raw", false, 0, settings.verbosemode);
+                add_ipservice(db, 18, "https://ipecho.net/plain", false, 1, settings.verbosemode);
+                add_ipservice(db, 19, "http://plain-text-ip.com/", false, 0, settings.verbosemode);
         }
 
-        int maxurls = get_count_ipservices(db);
-        int urlnr = get_new_random_urlnr(db, maxurls, settings.verbosemode, settings.silentmode);
+        int  num_all_urls = get_count_all_ipservices(db);
+        if (num_all_urls < 2) {
+                if (!settings.silentmode) {
+                        printf("No enough url's added to database need at least 2 services.\n");
+                        exit(EXIT_FAILURE);
+                }
+        }
+
+        int urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.verbosemode, settings.silentmode);
         const char *urlipservice;
         urlipservice = get_url_ipservice(db, urlnr);
         if (settings.verbosemode) {
@@ -595,7 +572,7 @@ int main(int argc, char **argv)
                 }
 
                 const char *confirmurl;
-                urlnr = get_new_random_urlnr(db, maxurls, settings.verbosemode, settings.silentmode);
+                urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.verbosemode, settings.silentmode);
                 confirmurl = get_url_ipservice(db, urlnr);
                 if (settings.verbosemode) {
                         printf("Using %s to confirm current public ip address with.\n", confirmurl);
@@ -642,7 +619,7 @@ int main(int argc, char **argv)
  run.\n");
                 }
 
-                urlnr = get_new_random_urlnr(db, maxurls, settings.verbosemode, settings.silentmode);
+                urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.verbosemode, settings.silentmode);
                 const char *confirmchangeurl;
                 confirmchangeurl = get_url_ipservice(db, urlnr);
                 if (settings.verbosemode) {

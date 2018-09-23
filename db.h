@@ -6,9 +6,9 @@ int create_table_ipservice(sqlite3 *db, bool verbosemode);
 
 int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, bool verbosemode);
 
-int get_count_ipservices(sqlite3 *db);
+int get_count_all_ipservices(sqlite3 *db);
 
-int get_count_available_ipservices(sqlite3 *db);
+int get_count_available_ipservices(sqlite3 *db, int allowedprotocoltypes);
 
 const char * get_url_ipservice(sqlite3 *db, int urlnr);
 
@@ -16,7 +16,7 @@ int update_disabled_ipsevice(sqlite3 *db, int urlnr, bool addtimestamp);
 
 void get_disabled_ipservices(sqlite3 *db, int urlnrs_avoid[], bool verbosemode);
 
-void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled);
+void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled, int allowedprotocoltypes);
 
 //bool is_disabled_ipservice(sqlite3 *db, int urlnr);
 
