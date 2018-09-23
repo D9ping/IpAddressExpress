@@ -8,13 +8,17 @@ int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, b
 
 int get_count_ipservices(sqlite3 *db);
 
+int get_count_available_ipservices(sqlite3 *db);
+
 const char * get_url_ipservice(sqlite3 *db, int urlnr);
 
-int update_ipsevice_temporary_disable(sqlite3 *db, int urlnr);
+int update_disabled_ipsevice(sqlite3 *db, int urlnr, bool addtimestamp);
 
-// TODO:
-//void get_ipservices(sqlite3 *db, int disabled);
+void get_disabled_ipservices(sqlite3 *db, int urlnrs_avoid[], bool verbosemode);
 
+void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled);
+
+//bool is_disabled_ipservice(sqlite3 *db, int urlnr);
 
 int create_table_config(sqlite3 *db, bool verbosemode);
 
@@ -30,5 +34,5 @@ int update_config_value_int(sqlite3 *db, char *name, int valuenew, bool verbosem
 
 int update_config_value_str(sqlite3 *db, char *name, const char * valuenew, bool verbosemode);
 
-int is_config_exists(sqlite3 *db, char *name);
+bool is_config_exists(sqlite3 *db, char *name);
 

@@ -43,6 +43,7 @@ int create_table_ipservice(sqlite3 *db, bool verbosemode)
                 fprintf(stdout, "Table ipservice succesfully created.\n");
         }
 
+        sqlite3_finalize(stmt);
         return retcode;
 }
 
@@ -89,21 +90,42 @@ int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, b
 */
 int get_count_ipservices(sqlite3 *db)
 {
-        int items = 0;
-        int rc = 0;
+        int cntall = 0;
         sqlite3_stmt *stmt = NULL;
-        rc = sqlite3_prepare_v2(db,
-                                "SELECT COUNT(`nr`) FROM `ipservice` LIMIT 1;",
-                                1023,
-                                &stmt,
-                                NULL);
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-                items = sqlite3_column_int(stmt, 0);
-                break;
+        sqlite3_prepare_v2(db,
+                           "SELECT COUNT(`nr`) FROM `ipservice` LIMIT 1;",
+                           1023,
+                           &stmt,
+                           NULL);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+                cntall = sqlite3_column_int(stmt, 0);
+        } else {
+                cntall = 0;
         }
 
         sqlite3_finalize(stmt);
-        return items;
+        return cntall;
+}
+
+
+int get_count_available_ipservices(sqlite3 *db)
+{
+        const int * cntavailable;
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db,
+                           "SELECT COUNT(`nr`) FROM `ipservice` WHERE `disabled` = 0 LIMIT 1;",
+                           -1,
+                           &stmt,
+                           NULL);
+
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+                cntavailable = sqlite3_column_int(stmt, 0);
+        } else {
+                cntavailable = 0;
+        }
+
+        sqlite3_finalize(stmt);
+        return cntavailable;
 }
 
 
@@ -114,19 +136,21 @@ const char * get_url_ipservice(sqlite3 *db, int urlnr)
 {
         const char *url;
         char *urlipservice;
-        urlipservice = malloc(MAXLENURL * sizeof(char));
+        int sizeurlipservice = MAXLENURL * sizeof(char);
+        urlipservice = malloc(sizeurlipservice);
 
-        int retcode = 0;
+        //int retcode = 0;
         sqlite3_stmt *stmt = NULL;
-        retcode = sqlite3_prepare_v2(db,
-                                     "SELECT `url` FROM `ipservice` WHERE `nr` = ?1 LIMIT 1;",
-                                     2047,
-                                     &stmt,
-                                     NULL);
+        sqlite3_prepare_v2(db,
+                           "SELECT `url` FROM `ipservice` WHERE `nr` = ?1 LIMIT 1;",
+                           sizeurlipservice,
+                           &stmt,
+                           NULL);
         sqlite3_bind_int(stmt, 1, urlnr);
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
                 url = sqlite3_column_text(stmt, 0);
-                break;
+        } else {
+                url = "";
         }
 
         strcpy(urlipservice, url);
@@ -135,19 +159,29 @@ const char * get_url_ipservice(sqlite3 *db, int urlnr)
 }
 
 
-int update_ipsevice_temporary_disable(sqlite3 *db, int urlnr)
+int update_disabled_ipsevice(sqlite3 *db, int urlnr, bool addtimestamp)
 {
-        int timestampnow = (int)time(NULL);
         int retcode = 0;
         sqlite3_stmt *stmt = NULL;
-        sqlite3_prepare_v2(db,
-                            "UPDATE `ipservice` SET `disabled`= 1, `lasterroron`= ?1\
- WHERE  `nr`= ?2 LIMIT 1;",
-                           -1,
-                           &stmt,
-                           NULL);
-        sqlite3_bind_int(stmt, 1, timestampnow);
-        sqlite3_bind_int(stmt, 2, urlnr);
+        if (addtimestamp) {
+                int timestampnow = (int)time(NULL);
+                sqlite3_prepare_v2(db,
+                                    "UPDATE `ipservice` SET `disabled`= 1, `lasterroron`= ?1\
+ WHERE `nr`= ?2 LIMIT 1;",
+                                   -1,
+                                   &stmt,
+                                   NULL);
+                sqlite3_bind_int(stmt, 1, timestampnow);
+                sqlite3_bind_int(stmt, 2, urlnr);
+        } else {
+               sqlite3_prepare_v2(db,
+                                  "UPDATE `ipservice` SET `disabled`= 1 WHERE `nr`= ?2 LIMIT 1;",
+                                  -1,
+                                  &stmt,
+                                  NULL);
+               sqlite3_bind_int(stmt, 2, urlnr);
+        }
+
         retcode = sqlite3_step(stmt);
         if (retcode != SQLITE_DONE) {
                 fprintf(stderr, "Error updating ipservice: %s\n", sqlite3_errmsg(db));
@@ -157,26 +191,49 @@ int update_ipsevice_temporary_disable(sqlite3 *db, int urlnr)
         return retcode;
 }
 
-/*
-void get_ipservices(sqlite3 *db, int disabled)
+
+void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled)
 {
+        int i = 0;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
-                                "SELECT `nr`, `url` FROM `ipservice` WHERE `disabled` = ?1;",
-                                -1,
-                                &stmt,
-                                NULL);
+                            "SELECT `nr` FROM `ipservice` WHERE `disabled` = ?1;",
+                            -1,
+                            &stmt,
+                            NULL);
         sqlite3_bind_int(stmt, 1, disabled);
         while (sqlite3_step(stmt) == SQLITE_ROW) {
                 int nr;
-                char * url;
                 nr = sqlite3_column_int(stmt, 0);
-                url = sqlite3_column_text(stmt, 0);
+                urlnrs[i] = nr;
+                ++i;
         }
 
         sqlite3_finalize(stmt);
+}
 
-        return resultset..;
+/*
+bool is_disabled_ipservice(sqlite3 *db, int urlnr)
+{
+        int disabled = 1;
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db,
+                           "SELECT `disabled` FROM `ipservice` WHERE `nr` = ?1;",
+                           -1,
+                           &stmt,
+                           NULL);
+        sqlite3_bind_int(stmt, 1, urlnr);
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+                disabled = sqlite3_column_int(stmt, 0);
+                break;
+        }
+
+        sqlite3_finalize(stmt);
+        if (disabled == 1) {
+            return true;
+        } else {
+            return false;
+        }
 }
 */
 
@@ -198,6 +255,7 @@ int create_table_config(sqlite3 *db, bool verbosemode)
                 fprintf(stdout, "Table config succesfully created.\n");
         }
 
+        sqlite3_finalize(stmt);
         return retcode;
 }
 
@@ -332,7 +390,7 @@ int update_config_value_str(sqlite3 *db, char * name, const char * valuenew, boo
 }
 
 
-int is_config_exists(sqlite3 *db, char *name)
+bool is_config_exists(sqlite3 *db, char *name)
 {
         int value_int = 0;
         sqlite3_stmt *stmt = NULL;
@@ -349,6 +407,10 @@ int is_config_exists(sqlite3 *db, char *name)
         }
 
         sqlite3_finalize(stmt);
-        return value_int;
+        if (value_int >= 1) {
+            return true;
+        } else {
+            return false;
+        }
 }
 

@@ -67,7 +67,7 @@ int is_valid_ipv4_addr(char *ipv4addr)
     Is an number with a number array.
     @return 1 if it's within the array and 0 if the number not in the array.
             And return 2 if array is filled with all maxurls urlnr's.
-*/
+
 int is_num_within_numarr(int numarr[], int maxurls, int needlenum)
 {
         for (int i = 0; i < maxurls; ++i) {
@@ -86,158 +86,7 @@ int is_num_within_numarr(int numarr[], int maxurls, int needlenum)
 
         return 0;
 }
-
-
-/**
-    Write urlnr to file to avoid on next run.
-    TODO: to be removed.
 */
-void write_avoid_urlnr(int urlnr, bool silentmode)
-{
-        char filepathavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
-        FILE *fpavoidurlnrs;
-        bool writecomma = true;
-        if (access(filepathavoidurlnrs, F_OK) == -1) {
-                // filepathavoidurlnrs does not exist.
-                writecomma = false;
-        }
-
-        fpavoidurlnrs = fopen(filepathavoidurlnrs, "a+");
-        if (fpavoidurlnrs == NULL) {
-                if (!silentmode) {
-                        fprintf(stderr, "Error: Could not open %s.\n", filepathavoidurlnrs);
-                }
-
-                //fclose(fpavoidurlnrs);
-                return;
-        }
-
-        fseek(fpavoidurlnrs, 0L, SEEK_END);
-        unsigned long filesizeavoidurlnrs = ftell(fpavoidurlnrs);
-        if (filesizeavoidurlnrs > MAXSIZEAVOIDURLNRS) {
-                if (!silentmode) {
-                        fprintf(stderr, "Error: %s too big.\n", filepathavoidurlnrs);
-                }
-
-                fclose(fpavoidurlnrs);
-                return;
-        }
-
-        rewind(fpavoidurlnrs);
-        int lastcharfirstline = 0;
-        int c;
-        do {
-                c = getc(fpavoidurlnrs);
-                if (c == '\n' || c == '\r') {
-                        break;
-                }
-
-                lastcharfirstline++;
-        } while (c != EOF);
-
-        if (filesizeavoidurlnrs == 0L) {
-                writecomma = false;
-        }
-
-        if (lastcharfirstline != (int)(filesizeavoidurlnrs++)) {
-                fprintf(stderr, "First line is shorter than filesize\
- overwriting after first line.\n");
-        }
-
-        if (writecomma == true) {
-                fprintf(fpavoidurlnrs, "%s%d", ",", urlnr);
-        } else {
-                fprintf(fpavoidurlnrs, "%d", urlnr);
-        }
-
-        fclose(fpavoidurlnrs);
-}
-
-
-/**
-    Get a pointer to the array with urlnr to avoid.
-    TODO: to be removed.
-*/
-void get_avoid_urlnrs(int avoidurlnrs[], int maxurls, bool verbosemode, bool silentmode)
-{
-        char filepathreadavoidurlnrs[] = "/tmp/avoidurlnrs.txt";
-        if (access(filepathreadavoidurlnrs, F_OK) == -1) {
-                if (verbosemode) {
-                        printf("%s does not exists.\n", filepathreadavoidurlnrs);
-                }
-
-                return;
-        } else if (verbosemode) {
-                printf("The %s file exists.\n", filepathreadavoidurlnrs);
-        }
-
-        FILE * fpreadavoidurlnrs;
-        fpreadavoidurlnrs = fopen(filepathreadavoidurlnrs, "r");
-        if (fpreadavoidurlnrs == NULL) {
-                perror("fopen");
-                return;
-        }
-
-        const char SEPERATOR = ',';
-        ssize_t filelength;
-        size_t readlen = 0;
-        char *lineavoidurlnrs;
-        filelength = getline(&lineavoidurlnrs, &readlen, fpreadavoidurlnrs) - 1;
-        fclose(fpreadavoidurlnrs);
-        int numurlnrs = 0;
-        int n = 0;
-        const char nonumberchars[] = "   ";
-        char arrnumber[3] = {' ', ' ', ' '};
-        for (uint i = 0; i <= filelength; ++i) {
-                if ((lineavoidurlnrs[i] == SEPERATOR) ||
-                    (i == filelength && lineavoidurlnrs[i] != SEPERATOR)) {
-                        n = 0;
-                        if (i >= 1 && strcmp(arrnumber, nonumberchars) != 0) {
-                                avoidurlnrs[numurlnrs] = atoi(arrnumber);
-                                ++numurlnrs;
-                                if (numurlnrs >= maxurls) {
-                                        if (!silentmode) {
-                                                fprintf(stderr, "Maximum number of urlnr\
- numbers to avoid reached.");
-                                        }
-
-                                        break;
-                                }
-                        }
-
-                        arrnumber[0] = ' ';
-                        arrnumber[1] = ' ';
-                        arrnumber[2] = ' ';
-                        continue;
-                }
-
-                if (n > 2) {
-                        // Currently two digits is the highest urlnr.
-                        if (!silentmode) {
-                                fprintf(stderr, "Error: number too big.\n");
-                        }
-
-                        arrnumber[0] = ' ';
-                        arrnumber[1] = ' ';
-                        arrnumber[2] = ' ';
-                        continue;
-                }
-
-                if (!isdigit(lineavoidurlnrs[i])) {
-                        if (!silentmode) {
-                                fprintf(stderr,
-                                        "Error '%c' character is not a number.\n",
-                                        lineavoidurlnrs[i]);
-                        }
-
-                        continue;
-                }
-
-                arrnumber[n] = lineavoidurlnrs[i];
-                ++n;
-        }
-}
-
 
 /**
     Generate a secure random number between 0 and maxurls.
@@ -275,47 +124,46 @@ int get_new_random_urlnr(sqlite3 *db, int maxurls, bool verbosemode, bool silent
                 exit(EXIT_FAILURE);
         }
 
-        int avoidurlnrs[20] = {-1}; // avoidurlnrs[maxurls]
-        if (verbosemode) {
-                printf("Get array with urlnumbers to avoid.\n");
-        }
+        const int numavailableipservices = get_count_available_ipservices(db);
+        int availableurlnrs[numavailableipservices];
+        get_urlnrs_ipservices(db, availableurlnrs, 0);
 
-        // TODO: use database to get all ipservice with disabled=1.
-        get_avoid_urlnrs(avoidurlnrs, maxurls, verbosemode, silentmode);
-        // TODO: construct: availableurlnrs
+        /*
+        // For debugging print availableurlnrs array.
+        if (verbosemode && !silentmode) {
+                for (int i = 0; i < numavailableipservices; ++i) {
+                        printf("availableurlnrs[%d] = %d.\n", i, availableurlnrs[i]);
+                }
+        }
+        */
+
         uint *seed = (uint *) malloc(SEED_LENGTH * sizeof(uint));
         int resreadrnd = fread(seed, sizeof(uint), SEED_LENGTH, rand_fd);
-        srand(*seed);
-        fclose(rand_fd);
-        // Choose a new random urlnr between 0 and maxurls.
-        int urlnr = (rand() % maxurls);
-        uint tries = 0;
-        uint maxtries = maxurls * 2;
-
-        int res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
-        if (res == 2) {
+        if (resreadrnd <= 0) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: avoided all possible public ip url's to use.\n\
- There is no url to use.\n");
+                        printf("Could not read from /dev/urandom.\n");
                 }
-
-                free(seed);
-                exit(EXIT_FAILURE);
         }
 
-        while (urlnr == lasturlnr || res == 1) {
-                urlnr = (rand() % maxurls);
-                ++tries;
-                if (tries > maxtries) {
-                        free(seed);
-                        exit(EXIT_FAILURE);
+        srand(*seed);
+        fclose(rand_fd);
+        // Choose a new random position in availableurlnrs. Between 0 and numavailableipservices.
+        int p = (rand() % numavailableipservices);
+        int urlnr = availableurlnrs[p];
+        if (numavailableipservices > 0 && lasturlnr >= 0)
+        {
+                int tries = 0;
+                int maxtries = 2;
+                while (urlnr == lasturlnr && tries < maxtries)
+                {
+                        p = (rand() % numavailableipservices);
+                        urlnr = availableurlnrs[p];
+                        ++tries;
                 }
 
-                res = is_num_within_numarr(avoidurlnrs, maxurls, urlnr);
-                if (verbosemode) {
-                        if (res != 1 && urlnr != lasturlnr) {
-                                printf("Found new urlnr = %d.\n", urlnr);
-                        }
+                if (urlnr == lasturlnr && tries == maxtries && !silentmode) {
+                        printf("Maximum number of retries choicing different urlnr reached.\n\
+ Use same urlnr as last run.\n");
                 }
         }
 
@@ -394,7 +242,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 509L:
                 printf("Warn: rate limiting active.\
  Avoid the current public ip address service for some time.");
-                update_ipsevice_temporary_disable(db, urlnr);
+                update_disabled_ipsevice(db, urlnr, true);
                 exit(EXIT_FAILURE);
         case 408L:
         case 500L:
@@ -403,7 +251,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
                 printf("Warn: used public ip address service has an error or other issue\
  (http error: %d).\n", httpcode);
                 // should not be avoid forever, but for some time only.
-                update_ipsevice_temporary_disable(db, urlnr);
+                update_disabled_ipsevice(db, urlnr, true);
                 break;
         case 401L:
         case 403L:
@@ -412,7 +260,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
                 printf("Warn: the used public ip address service has quit or does not\
  want automatic use.\nNever use this public ip service again.\n");
                 // do disable forever.
-                update_ipsevice_temporary_disable(db, urlnr);
+                update_disabled_ipsevice(db, urlnr, false);
                 break;
         case 301L:
         case 302L:
@@ -420,7 +268,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
                 printf("Warn: public IP address service has changed url and is redirecting\
  (http status code: %d).\n", httpcode);
                 // do disable forever.
-                update_ipsevice_temporary_disable(db, urlnr);
+                update_disabled_ipsevice(db, urlnr, false);
                 break;
         }
 }
@@ -546,15 +394,6 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
  */
 struct Settings parse_commandline_args(int argc, char **argv, struct Settings settings)
 {
-        // Set default values:
-        settings.secondsdelay = 0;
-        settings.argnposthook = 0;
-        settings.retryposthook = false;
-        settings.unsafehttp = false;
-        settings.showip = false;
-        settings.silentmode = false;
-        settings.verbosemode = false;
-
         bool argnumdelaysec = false;
         bool argposthook = false;
         // Parse commandline arguments and set settings struct.
@@ -635,6 +474,14 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
 int main(int argc, char **argv)
 {
         struct Settings settings;
+        // Set default values:
+        settings.secondsdelay = 0;
+        settings.argnposthook = 0;
+        settings.retryposthook = false;
+        settings.unsafehttp = false;
+        settings.showip = false;
+        settings.silentmode = false;
+        settings.verbosemode = false;
         settings = parse_commandline_args(argc, argv, settings);
 
         /*
@@ -740,7 +587,9 @@ int main(int argc, char **argv)
         }
 
         char *ipaddrconfirm;
-        if (is_config_exists(db, "ipwas") == 0) {
+        if (is_config_exists(db, "ipwas") == true) {
+                ipaddrconfirm = get_config_value_str(db, "ipwas");
+        } else {
                 if (settings.verbosemode) {
                         printf("First run of %s.\n", PROGRAMNAME);
                 }
@@ -784,8 +633,6 @@ int main(int argc, char **argv)
 
                         exit(EXIT_FAILURE);
                 }
-        } else {
-                ipaddrconfirm = get_config_value_str(db, "ipwas");
         }
 
         if (strcmp(ipaddrnow, ipaddrconfirm) != 0) {
@@ -892,14 +739,15 @@ int main(int argc, char **argv)
                         }
                 }
 
-                if (is_config_exists(db, "ipwas") == 0) {
-                        add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
-                } else {
+                if (is_config_exists(db, "ipwas") == true) {
                         update_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
+                } else {
+                        add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
                 }
         } else if (settings.verbosemode) {
                 printf("The current public ip is the same as the public ip from last ipservice.\n");
-                if (is_config_exists(db, "ipwas") == 0) {
+                if (is_config_exists(db, "ipwas") == false) {
+                        // Readded missing ipwas config value.
                         add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
                 }
         }
