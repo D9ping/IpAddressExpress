@@ -18,13 +18,11 @@ void get_disabled_ipservices(sqlite3 *db, int urlnrs_avoid[], bool verbosemode);
 
 void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled, int allowedprotocoltypes);
 
-//bool is_disabled_ipservice(sqlite3 *db, int urlnr);
-
 int create_table_config(sqlite3 *db, bool verbosemode);
 
 int get_config_value_int(sqlite3 *db, char *name);
 
-const char * get_config_value_str(sqlite3 *db, char *name);
+char * get_config_value_str(sqlite3 *db, char *name);
 
 int add_config_value_int(sqlite3 *db, char *name, int value, bool verbosemode);
 

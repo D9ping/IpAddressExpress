@@ -25,6 +25,7 @@
 #include <sqlite3.h>
 
 #define MAXLENURL          1023
+#define MAXLENCONFIGSTR    255
 
 int create_table_ipservice(sqlite3 *db, bool verbosemode)
 {
@@ -99,8 +100,6 @@ int get_count_all_ipservices(sqlite3 *db)
                            NULL);
         if (sqlite3_step(stmt) == SQLITE_ROW) {
                 cntall = sqlite3_column_int(stmt, 0);
-        } else {
-                cntall = 0;
         }
 
         sqlite3_finalize(stmt);
@@ -110,7 +109,7 @@ int get_count_all_ipservices(sqlite3 *db)
 
 int get_count_available_ipservices(sqlite3 *db, int allowedprotocoltypes)
 {
-        const int * cntavailable;
+        int cntavailable = 0;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
                            "SELECT COUNT(`nr`) FROM `ipservice` WHERE `disabled` = 0 AND type >= ?1 LIMIT 1;",
@@ -120,8 +119,6 @@ int get_count_available_ipservices(sqlite3 *db, int allowedprotocoltypes)
         sqlite3_bind_int(stmt, 1, allowedprotocoltypes);
         if (sqlite3_step(stmt) == SQLITE_ROW) {
                 cntavailable = sqlite3_column_int(stmt, 0);
-        } else {
-                cntavailable = 0;
         }
 
         sqlite3_finalize(stmt);
@@ -138,8 +135,6 @@ const char * get_url_ipservice(sqlite3 *db, int urlnr)
         char *urlipservice;
         int sizeurlipservice = MAXLENURL * sizeof(char);
         urlipservice = malloc(sizeurlipservice);
-
-        //int retcode = 0;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
                            "SELECT `url` FROM `ipservice` WHERE `nr` = ?1 LIMIT 1;",
@@ -213,30 +208,6 @@ void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled, int allowedp
         sqlite3_finalize(stmt);
 }
 
-/*
-bool is_disabled_ipservice(sqlite3 *db, int urlnr)
-{
-        int disabled = 1;
-        sqlite3_stmt *stmt = NULL;
-        sqlite3_prepare_v2(db,
-                           "SELECT `disabled` FROM `ipservice` WHERE `nr` = ?1;",
-                           -1,
-                           &stmt,
-                           NULL);
-        sqlite3_bind_int(stmt, 1, urlnr);
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-                disabled = sqlite3_column_int(stmt, 0);
-                break;
-        }
-
-        sqlite3_finalize(stmt);
-        if (disabled == 1) {
-            return true;
-        } else {
-            return false;
-        }
-}
-*/
 
 /**
         Create config table.
@@ -248,7 +219,7 @@ int create_table_config(sqlite3 *db, bool verbosemode)
         sqlite3_prepare_v2(db, "CREATE TABLE IF NOT EXISTS `config` ( \
  `name` TEXT, \
  `valueint` INT, \
- `valuestr` TEXT );", -1, &stmt, NULL);
+ `valuestr` TEXT(255) );", -1, &stmt, NULL);
         retcode = sqlite3_step(stmt);
         if (retcode != SQLITE_DONE) {
                 fprintf(stderr, "Error creating config table: %s\n", sqlite3_errmsg(db));
@@ -282,9 +253,12 @@ int get_config_value_int(sqlite3 *db, char * name)
 }
 
 
-const char * get_config_value_str(sqlite3 *db, char * name)
+char * get_config_value_str(sqlite3 *db, char * name)
 {
-        const char * value_str = NULL;
+        int configstrlen = MAXLENCONFIGSTR * sizeof(char);
+        char *configvaluestr;
+        configvaluestr = malloc(configstrlen);
+        const char * value_str;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
                            "SELECT `valuestr` FROM `config` \
@@ -298,8 +272,9 @@ const char * get_config_value_str(sqlite3 *db, char * name)
                 break;
         }
 
+        strcpy(configvaluestr, value_str);
         sqlite3_finalize(stmt);
-        return value_str;
+        return configvaluestr;
 }
 
 
@@ -369,11 +344,15 @@ int update_config_value_int(sqlite3 *db, char * name, int valuenew, bool verbose
 
 int update_config_value_str(sqlite3 *db, char * name, const char * valuenew, bool verbosemode)
 {
+        if (strlen(valuenew) > MAXLENCONFIGSTR) {
+                return -1;
+        }
+
         int retcode;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
                            "UPDATE `config` SET `valuestr`= ?1\
- WHERE  `name`= ?2 LIMIT 1;",
+ WHERE `name`= ?2 LIMIT 1;",
                            -1,
                            &stmt,
                            NULL);
