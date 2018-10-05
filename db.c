@@ -210,6 +210,30 @@ void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled, int allowedp
 
 
 /**
+ * Re-enable all the expired temporary disabled ipservice with a SQL query.
+ */
+int reenable_expired_disabled_ipservices(sqlite3 *db, int blockseconds)
+{
+        int retcode = 0;
+        int timestampunblock = (int)time(NULL) - blockseconds;
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db,
+                        "UPDATE `ipservice` SET `disabled` = 0 WHERE `disabled` = 1 AND `lasterroron` <= ?1;",
+                        -1,
+                        &stmt,
+                        NULL);
+        sqlite3_bind_int(stmt, 1, timestampunblock);
+        retcode = sqlite3_step(stmt);
+        if (retcode != SQLITE_DONE) {
+                fprintf(stderr, "Error on reenabling expired disabled ipservices: %s\n", sqlite3_errmsg(db));
+        }
+
+        sqlite3_finalize(stmt);
+        return retcode;
+}
+
+
+/**
         Create config table.
  */
 int create_table_config(sqlite3 *db, bool verbosemode)

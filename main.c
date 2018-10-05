@@ -43,6 +43,7 @@ typedef unsigned int          uint;
 struct Settings {
         int secondsdelay;
         int argnposthook;
+        int tempdisabledurlsblockseconds;
         bool verbosemode;
         bool silentmode;
         bool retryposthook;
@@ -313,7 +314,22 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
 
                 curl_easy_cleanup(curlsession);
                 fclose(fpdownload);
-                //write_avoid_urlnr(urlnr, silentmode);  TODO: replace with db.
+                switch (res) {
+                case CURLE_TOO_MANY_REDIRECTS:
+                case CURLE_REMOTE_ACCESS_DENIED:
+                case CURLE_URL_MALFORMAT:
+                case CURLE_REMOTE_FILE_NOT_FOUND:
+                case CURLE_SSL_CACERT:
+                        update_disabled_ipsevice(db, urlnr, true);
+                        break;
+                default:
+                        // CURLE_OPERATION_TIMEDOUT, CURLE_GOT_NOTHING, CURLE_READ_ERROR, CURLE_RECV_ERROR,
+                        // CURLE_COULDNT_CONNECT, CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_RESOLVE_PROXY,
+                        // CURLE_WRITE_ERROR
+                        update_disabled_ipsevice(db, urlnr, true);
+                        break;
+                }
+
                 exit(EXIT_FAILURE);
         }
 
@@ -353,8 +369,6 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         }
 
         ipaddr = read_file_ipaddr(downloadtempfilepath, silentmode);
-
-        //return http_code;
         return ipaddr;
 }
 
@@ -447,6 +461,7 @@ int main(int argc, char **argv)
         // Set default values:
         settings.secondsdelay = 0;
         settings.argnposthook = 0;
+        settings.tempdisabledurlsblockseconds = 14400;  // 4 hours
         settings.retryposthook = false;
         settings.unsafehttp = false;
         settings.showip = false;
@@ -460,6 +475,7 @@ int main(int argc, char **argv)
                 printf(" --- Current program settings --- \n");
                 printf("settings.verbosemode = %d\n", settings.verbosemode);
                 printf("settings.secondsdelay = %d\n", settings.secondsdelay);
+                printf("settings.tempdisabledurlsblockseconds = %d\n", settings.tempdisabledurlsblockseconds);
                 printf("settings.showip = %d\n", settings.showip);
                 printf("settings.silentmode = %d\n", settings.silentmode);
                 printf("settings.unsafehttp = %d\n", settings.unsafehttp);
@@ -589,7 +605,6 @@ int main(int argc, char **argv)
                 parse_httpcode_status(httpcodeconfirm, db, urlnr);
                 if (is_valid_ipv4_addr(ipaddrconfirm) != 1) {
                         free(ipaddrconfirm);
-                        //unlink(filepathipnow);
                         if (!settings.silentmode) {
                                 fprintf(stderr, "Error: invalid IP(IPv4) address for first\
  run confirmation from %s.\n", confirmurl);
@@ -638,7 +653,6 @@ int main(int argc, char **argv)
                 parse_httpcode_status(httpcodeconfirmchange, db, urlnr);
 
                 if (is_valid_ipv4_addr(ipaddrconfirmchange) != 1) {
-                        //free(ipaddrnowconfirm);  is const
                         if (!settings.silentmode) {
                                 fprintf(stderr, "Error: invalid IP(IPv4) address returned\
  from %s as confirm public ip service.\n", confirmchangeurl);
@@ -672,7 +686,6 @@ int main(int argc, char **argv)
                 }
 
                 if (settings.argnposthook <= 1) {
-                        //cmdposthook[] = "/bin/sh ./update_ip_dns.sh ";
                         if (!settings.silentmode) {
                                 fprintf(stderr, "Error: no posthook provided.\n");
                         }
@@ -734,6 +747,7 @@ int main(int argc, char **argv)
                 printf("%s", ipaddrnow);
         }
 
+        reenable_expired_disabled_ipservices(db, settings.tempdisabledurlsblockseconds);
         return EXIT_SUCCESS;
 }
 

@@ -96,9 +96,6 @@ Run publicipchangedetector with the -h argumemt for help on all the possible com
 No, PublicIpChangeDetector is still in development. 
 Compiling the binary yourself can create a more optimized binary for the processor you are using.
 
-###### What features still needs to be implemented?
-TODO's:
- - Allow to temporary disable a public ip service instead of avoiding forever.
 
 
 ## Support 
