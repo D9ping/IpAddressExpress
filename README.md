@@ -24,7 +24,7 @@ If the public IPv4 address is valid and is different from last run the posthook 
 
 ### Flowchart of PublicIpChangeDetector operations ###
 This flowcharts show is how PublicIpChangeDetector works:
-![flowchart](https://raw.githubusercontent.com/D9ping/PublicIpChangeDetector/master/docs/PublicIpChangeDetector_flowchart_v2.png?raw=true)
+![flowchart](https://raw.githubusercontent.com/D9ping/PublicIpChangeDetector/master/docs/PublicIpChangeDetector_flowchart_v3.png?raw=true)
 
 
 ### Compiling PublicIpChangeDetector from source
@@ -57,18 +57,20 @@ Edit the update_ip_dns.sh example bash script with your scripting for updating y
 
 ### Questions and Answers
 
+###### Why again, not just trust one good public ip service for updating the dynamic dns(ddns)?
+You could do that but you are putting a lot of trust on one public ip address service 
+ that could technically control your domain records you are automatically updating.
+ By using publicipchangedetector you don't have to fully trust one public ip address service as lies
+ or an errors from one public ip address service are spotted by using consensus with
+ an other randomly selected public ip address service. This makes for example fooling your
+ server on a dynamic public ipv4 address into thinking incorrectly it needs to update 
+ dynamic dns records almost impossible.
+
 ###### Why not ask my router for my public ip address?
 Well technically you could get the public IPv4 address from your router.
 But sadly every router manufacturer has a different (web)interface for providing this information.
 And often the information is secured by a login screen. 
 PublicIpChangeDetector does not rely on the router and because of this just works everywhere where there is internet access.
-
-###### Why not just trust one good public ip service for updating the dynamic dns(ddns)?
-You could do that but you are putting a lot of trust on one public ip address service 
- that could technically control your domain records you are automatically updating.
- By using publicipchangedetector you don't have to fully trust one public ip address service as lies
- or an errors from one public ip address service are spotted by using consensus with
- an other randomly selected public ip address service.
 
 ###### What is the maximum downtime for my server if my dynamic public ip address changes?
 It depends on how often you run the publicipchangedetector program for detecting your public ip change.
@@ -84,17 +86,13 @@ a http forbidden(403) error if you are making too many requests too quickly.
 No, it only make 1 http request if previous public ip address from last run is known.
 
 ###### What about IPv6?
-There is no need to support IPv6 as it does not use NAT.
+There is no need to support IPv6 as the server is given a internet routable IPv6 address from your router.
 
 ###### How do i get the current public IPv4 address from commandline?
 Run publicipchangedetector with the -showip argument to always print the current public ip address.
 
 ###### What command-line arguments can i use?
 Run publicipchangedetector with the -h argumemt for help on all the possible command-line arguments.
-
-###### Do you have a precompiled binary?
-No, PublicIpChangeDetector is still in development. 
-Compiling the binary yourself can create a more optimized binary for the processor you are using.
 
 
 
