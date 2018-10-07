@@ -1,5 +1,5 @@
 .\" Manpage for PublicIpChangeDetector.
-.TH man 8 "14 Aug 2018" "0.4.4" "PublicIpChangeDetector man page"
+.TH man 8 "8 Oct 2018" "0.9.0" "PublicIpChangeDetector man page"
 .SH NAME
 PublicIpChangeDetector \- Figure out the public IPv4 address confirmed with consensus.
 
@@ -28,8 +28,12 @@ without getting detected.
 
 --retryposthook Rerun posthook on next run if posthook command fails.
 
---failsilent    Don't print issues to stderr. To known if a error occured 
+--failsilent    Fail silently don't print issues to stderr. To known if a error occured 
                 checking exit status will then be required.
+
+--errorwait     The number of seconds that an ipservice that causes a temporary error
+                has to wait(disabled) before it can be used again.
+                By default it waits 14400 seconds that is 4 hours.
 
 --version       Print the version of this program and exit.
 
