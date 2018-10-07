@@ -28,7 +28,7 @@
 #include "db.h"
 
 #define PROGRAMNAME           "PublicIpChangeDetector"
-#define PROGRAMVERSION        "0.5.0-beta"
+#define PROGRAMVERSION        "0.9.0-beta"
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/PublicIpChangeDetector)"
 #define SEED_LENGTH           32
 #define IPV6_TEXT_LENGTH      34
@@ -43,7 +43,7 @@ typedef unsigned int          uint;
 struct Settings {
         int secondsdelay;
         int argnposthook;
-        int tempdisabledurlsblockseconds;
+        int errorwait;
         bool verbosemode;
         bool silentmode;
         bool retryposthook;
@@ -343,10 +343,6 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         unsigned long long int downloadedfilesize = ftell(fpdownload);
         fclose(fpdownload);
 
-        // TODO: redirect url, print it?
-        //char *followurl = NULL;
-        //curl_easy_getinfo(curlsession, CURLINFO_REDIRECT_URL, &followurl);
-
         // Cleanup curl.
         curl_easy_cleanup(curlsession);
 
@@ -374,30 +370,43 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
 
 
 /**
+ * Check if argumentval is a integer and return it, if not output error and exit the program.
+ */
+int read_commandline_argument_int_value(char * argumentval, bool silentmode)
+{
+        // Check if argv[n] valid is integer
+        int lenargumentval = strlen(argumentval);
+        for (int i = 0; i < lenargumentval; ++i) {
+                if (!isdigit(argumentval[i])) {
+                        if (!silentmode) {
+                                fprintf(stderr, "Error: invalid argument number value.\n");
+                        }
+
+                        exit(EXIT_FAILURE);
+                }
+        }
+
+        return atoi(argumentval);
+}
+
+
+/**
  * Parse the command line arguments to the settings struct.
  */
 struct Settings parse_commandline_args(int argc, char **argv, struct Settings settings)
 {
         bool argnumdelaysec = false;
+        bool argnumerrorwait = false;
         bool argposthook = false;
         // Parse commandline arguments and set settings struct.
         for (int n = 1; n < argc; ++n) {
                 if (argnumdelaysec) {
                         argnumdelaysec = false;
-                        // Check if argv[n] valid is integer
-                        int lenarg = strlen(argv[n]);
-                        for (int i = 0; i < lenarg; ++i) {
-                                if (!isdigit(argv[n][i])) {
-                                        if (!settings.silentmode) {
-                                                fprintf(stderr,
-                                                        "Error: invalid number of seconds delay.\n");
-                                        }
-
-                                        exit(EXIT_FAILURE);
-                                }
-                        }
-
-                        settings.secondsdelay = atoi(argv[n]);
+                        settings.secondsdelay = read_commandline_argument_int_value(argv[n], settings.silentmode);
+                        continue;
+                } else if (argnumerrorwait) {
+                        argnumerrorwait = false;
+                        settings.errorwait = read_commandline_argument_int_value(argv[n], settings.silentmode);
                         continue;
                 } else if (argposthook) {
                         argposthook = false;
@@ -420,6 +429,8 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
                         argposthook = true;
                 } else if (strcmp(argv[n], "--delay") == 0) {
                         argnumdelaysec = true;
+                } else if (strcmp(argv[n], "--errorwait") == 0) {
+                        argnumerrorwait = true;
                 } else if (strcmp(argv[n], "--retryposthook") == 0) {
                         settings.retryposthook = true;
                 } else if (strcmp(argv[n], "--showip") == 0) {
@@ -441,7 +452,11 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
                         printf("--showip        Always print the currently confirmed public IPv4 address.\n");
                         printf("--unsafehttp    Allow the use of http public ip services, no TLS/SSL.\n");
                         printf("--delay 1-59    Delay the execution of this program with X number of seconds.\n");
-                        printf("--failsilent    Don't print issues to stderr.\n");
+                        printf("--errorwait n   The number of seconds that an ipservice that causes a temporary error\n");
+                        printf("                has to wait before it being able to be used again.\n");
+                        int errorwaithours = settings.errorwait / 3600;
+                        printf("                By default %d seconds (%d hours).\n", settings.errorwait, errorwaithours);
+                        printf("--failsilent    Fail silently do not print issues to stderr.\n");
                         printf("--version       Print the version of this program and exit.\n");
                         printf("-v --verbose    Run in verbose mode, output what this program does.\n");
                         printf("-h --help       Print this help message.\n");
@@ -461,7 +476,7 @@ int main(int argc, char **argv)
         // Set default values:
         settings.secondsdelay = 0;
         settings.argnposthook = 0;
-        settings.tempdisabledurlsblockseconds = 14400;  // 4 hours
+        settings.errorwait = 14400;  // 4 hours
         settings.retryposthook = false;
         settings.unsafehttp = false;
         settings.showip = false;
@@ -475,7 +490,7 @@ int main(int argc, char **argv)
                 printf(" --- Current program settings --- \n");
                 printf("settings.verbosemode = %d\n", settings.verbosemode);
                 printf("settings.secondsdelay = %d\n", settings.secondsdelay);
-                printf("settings.tempdisabledurlsblockseconds = %d\n", settings.tempdisabledurlsblockseconds);
+                printf("settings.errorwait = %d\n", settings.errorwait);
                 printf("settings.showip = %d\n", settings.showip);
                 printf("settings.silentmode = %d\n", settings.silentmode);
                 printf("settings.unsafehttp = %d\n", settings.unsafehttp);
@@ -708,7 +723,8 @@ int main(int argc, char **argv)
                         exit(EXIT_FAILURE);
                 }
 
-                snprintf(cmdposthook, MAXLENPATHPOSTHOOK, "\"%s\" \"%s\"", argv[settings.argnposthook], ipaddrnow);
+                snprintf(cmdposthook, MAXLENPATHPOSTHOOK, "\"%s\" \"%s\"",
+                         argv[settings.argnposthook], ipaddrnow);
                 /* printf("cmdposthook = [ %s ]\n", cmdposthook); // DEBUG */
                 unsigned short exitcode = system(cmdposthook);
                 if (exitcode != 0) {
@@ -747,7 +763,7 @@ int main(int argc, char **argv)
                 printf("%s", ipaddrnow);
         }
 
-        reenable_expired_disabled_ipservices(db, settings.tempdisabledurlsblockseconds);
+        reenable_expired_disabled_ipservices(db, settings.errorwait);
         return EXIT_SUCCESS;
 }
 
