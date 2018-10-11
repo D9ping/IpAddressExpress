@@ -92,9 +92,10 @@ There is no need to support IPv6 as the server is given a internet routable IPv6
 Run publicipchangedetector with the -showip argument to always print the current public ip address.
 
 ###### What command-line arguments can i use?
-Run publicipchangedetector with the -h argumemt for help on all the possible command-line arguments.
+Run publicipchangedetector with the -h command-line argument for help on all the possible command-line arguments to use.
 
-
+###### Does PublicIpChangeDetector need root rights?
+No, PublicIpChangeDetector can just run fine as a lower privilege  user as long as it can read and write to the data.db sqlite database file. Data.db stores all ipservice PublicIpChangeDetector can use and the information on the the last used ipservice. etc.
 
 ## Support 
 If you find it useful, consider buying me a drink.
