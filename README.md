@@ -97,6 +97,10 @@ Run publicipchangedetector with the -h command-line argument for help on all the
 ###### Does PublicIpChangeDetector need root rights?
 No, PublicIpChangeDetector can just run fine as a lower privilege  user as long as it can read and write to the data.db sqlite database file. Data.db stores all ipservice PublicIpChangeDetector can use and the information on the the last used ipservice. etc.
 
+###### Are all the pubic ip service's hardcoded in the application?
+All the ipservices that are used are stored in a SQLite database file. If the SQLite database file exists you can remove, disable or add any public ip services with SQL. If the SQLite database file does not exist then the SQLite database file is created and about 20 public ip services are added to the database file by default.
+
+
 ## Support 
 If you find it useful, consider buying me a drink.
 [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/badge.svg?style=beer-square)](https://beerpay.io/D9ping/PublicIpChangeDetector)  [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/make-wish.svg?style=flat-square)](https://beerpay.io/D9ping/PublicIpChangeDetector?focus=wish)
