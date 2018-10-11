@@ -28,7 +28,7 @@
 #include "db.h"
 
 #define PROGRAMNAME           "PublicIpChangeDetector"
-#define PROGRAMVERSION        "0.9.0-beta"
+#define PROGRAMVERSION        "0.9.1-beta"
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/PublicIpChangeDetector)"
 #define SEED_LENGTH           32
 #define IPV6_TEXT_LENGTH      34
@@ -214,6 +214,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 509L:
                 printf("Warn: rate limiting active.\
  Avoid the current public ip address service for some time.");
+                // Temporary disable
                 update_disabled_ipsevice(db, urlnr, true);
                 exit(EXIT_FAILURE);
         case 408L:
@@ -222,7 +223,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 504L:
                 printf("Warn: used public ip address service has an error or other issue\
  (http error: %d).\n", httpcode);
-                // should not be avoid forever, but for some time only.
+                // Temporary disable
                 update_disabled_ipsevice(db, urlnr, true);
                 break;
         case 401L:
@@ -231,7 +232,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 410L:
                 printf("Warn: the used public ip address service has quit or does not\
  want automatic use.\nNever use this public ip service again.\n");
-                // do disable forever.
+                // Disable forever
                 update_disabled_ipsevice(db, urlnr, false);
                 break;
         case 301L:
@@ -239,7 +240,7 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 308L:
                 printf("Warn: public IP address service has changed url and is redirecting\
  (http status code: %d).\n", httpcode);
-                // do disable forever.
+                // Disable forever
                 update_disabled_ipsevice(db, urlnr, false);
                 break;
         }
@@ -352,15 +353,20 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         // Check filesize
         if (downloadedfilesize == 0) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: downloaded file is empty.\n");
+                        fprintf(stderr, "Error: downloaded file is empty(urlnr = %d).\n", urlnr);
                 }
 
+                // Temporary disable
+                update_disabled_ipsevice(db, urlnr, true);
                 exit(EXIT_FAILURE);
         } else if (downloadedfilesize > MAXSIZEIPADDRDOWNLOAD) {
+                // Did not return only an ip address.
                 if (!silentmode) {
-                        fprintf(stderr, "Error: response ip service too big.\n");
+                        fprintf(stderr, "Error: response ip service(urlnr = %d) too big.\n", urlnr);
                 }
 
+                // Temporary disable
+                update_disabled_ipsevice(db, urlnr, true);
                 exit(EXIT_FAILURE);
         }
 
