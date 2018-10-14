@@ -3,14 +3,14 @@
 [<img src="https://img.shields.io/github/issues/D9ping/PublicIpChangeDetector.svg?style=flat-square" alt="Open issues" />](https://github.com/D9ping/PublicIpChangeDetector/issues) 
 [![Build Status](https://travis-ci.org/D9ping/PublicIpChangeDetector.svg?branch=master)](https://travis-ci.org/D9ping/PublicIpChangeDetector)
 ### Why use PublicIpChangeDetector?
-Compared to shell scripts for figuring out the public IPv4 address PublicIpChangeDetector will more 
-securely and more reliable detect the current public IPv4 address.
-It's more secure because it does not require to trust a single server and uses https for tamper protection.
+Compared to shell scripts for figuring out the public IPv4 address PublicIpChangeDetector will  
+securely and more reliable detect the current public IPv4 address than using a signle public ip service.
+It's more secure because it does not require to trust a single server and uses HTTPS for tamper protection.
 What makes PublicIpChangeDetector more secure is, that it requires consensus between two randomly selected public IPv4 address web services.
-Because of this it's not possible for a single public IPv4 address web service to fool the computer
+Because of this it's not possible for a single public IPv4 address web service to fool the program
  incorrectly thinking the public ip address has been changed.
-And by using multiple public IPv4 address web services the current public IPv4 can be discovered after some time
- even when some public IPv4 web services are down.
+And by using multiple public IPv4 address web services the current public IPv4 can still be discovered after some time
+ even when one or more public IPv4 web services are down.
 PublicIpChangeDetector is written in C so it executes fast and efficiently.
  
 ### How PublicIpChangeDetector detects public IPv4 address change?
@@ -23,8 +23,8 @@ If the public IPv4 address is valid and is different from last run the posthook 
  with the new IPv4 address as first commandline parameter.
 
 ### Flowchart of PublicIpChangeDetector operations ###
-This flowcharts show is how PublicIpChangeDetector works:
-![flowchart](https://raw.githubusercontent.com/D9ping/PublicIpChangeDetector/master/docs/PublicIpChangeDetector_flowchart_v3.png?raw=true)
+A flowcharts of how PublicIpChangeDetector works:
+![flowchart PublicIpChangeDetector](https://raw.githubusercontent.com/D9ping/PublicIpChangeDetector/master/docs/PublicIpChangeDetector_flowchart_v3.png?raw=true)
 
 
 ### Compiling PublicIpChangeDetector from source
@@ -57,30 +57,28 @@ Edit the update_ip_dns.sh example bash script with your scripting for updating y
 
 ### Questions and Answers
 
-###### Why again, not just trust one good public ip service for updating the dynamic dns(ddns)?
+###### Why not just trust one good public ip service for updating the dynamic dns(ddns)?
 You could do that but you are putting a lot of trust on one public ip address service 
- that could technically control your domain records you are automatically updating.
+ that could technically hijack your domain record that you are automatically updating.
  By using publicipchangedetector you don't have to fully trust one public ip address service as lies
  or an errors from one public ip address service are spotted by using consensus with
  an other randomly selected public ip address service. This makes for example fooling your
  server on a dynamic public ipv4 address into thinking incorrectly it needs to update 
- dynamic dns records almost impossible.
+ dynamic dns records hardly impossible.
 
 ###### Why not ask my router for my public ip address?
-Well technically you could get the public IPv4 address from your router.
-But sadly every router manufacturer has a different (web)interface for providing this information.
-And often the information is secured by a login screen. 
-PublicIpChangeDetector does not rely on the router and because of this just works everywhere where there is internet access.
+Good question. Well technically you could get the public IPv4 address from your router.
+But sadly every router manufacturer has a different webinterface for providing this information via their webinterface.
+And often the information is secured by a login screen. PublicIpChangeDetector does not rely on the router and there fautures to provide the public ip address and because of this it just works for everyone where there is internet access.
 
-###### What is the maximum downtime for my server if my dynamic public ip address changes?
+###### What is the maximum downtime for my server could have if my dynamic public ip address changes?
 It depends on how often you run the publicipchangedetector program for detecting your public ip change.
 Also note that if a public ip address service lies to you it will take an extra publicipchangedetector run longer.
-And it also depends on how long the dns entries that needs to change are cached by dns servers.
+And if you are using PublicIpChangeDetector for ddns then it also depends on how long the dns entries that needs to change are cached by the dns servers for the old dns records to be removed from cache.
 
-###### Should i run publicipchangedetector as often as possible?
-No, please be conservative on how often you run publicipchangedetector. Several public ip services are already serving a lot of requests.
-They don't like it you use too much bandwidth and they will ban/drop you or maybe send you 
-a http forbidden(403) error if you are making too many requests too quickly.
+###### Should i run PublicIpChangeDetector as often as possible?
+No, please be conservative on how often you run publicipchangedetector. Several public ip services are already serving a lot of requests. They don't like it you use too much bandwidth and they will ban/drop you or maybe send you 
+a http error if you are making too many requests too quickly.
 
 ###### Does publicipchangedetector makes two request on execution? 
 No, it only make 1 http request if previous public ip address from last run is known.
@@ -98,7 +96,7 @@ Run publicipchangedetector with the -h command-line argument for help on all the
 No, PublicIpChangeDetector can just run fine as a lower privilege  user as long as it can read and write to the data.db sqlite database file. Data.db stores all ipservice PublicIpChangeDetector can use and the information on the the last used ipservice. etc.
 
 ###### Are all the pubic ip service's hardcoded in the application?
-All the ipservices that are used are stored in a SQLite database file. If the SQLite database file exists you can remove, disable or add any public ip services with SQL. If the SQLite database file does not exist then the SQLite database file is created and about 20 public ip services are added to the database file by default.
+All the ipservices that are used are stored in a SQLite database file. If the SQLite database file exists you can remove, disable or add any public ip services with standard SQL. If the SQLite database file does not exist then the SQLite database file is created and about 20 public ip services are added to the database file by default to use.
 
 
 ## Support 
