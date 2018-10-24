@@ -22,6 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <math.h>
 #include <arpa/inet.h>
 #include <curl/curl.h>
 #include <sqlite3.h>
@@ -39,6 +40,11 @@
 #define MAXLENPATHPOSTHOOK    1023
 #define MAXLENURL             1023
 #define MAXSIZEAVOIDURLNRS    4096
+#define MAXPRIORITY           9
+#define MAXCHOOSERETRIES      8
+#define PROTOCOLDNS           0
+#define PROTOCOLHTTP          1
+#define PROTOCOLHTTPS         2
 typedef unsigned int          uint;
 
 
@@ -127,20 +133,30 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
         // Choose a new random position in availableurlnrs. Between 0 and numavailableipservices.
         int p = (rand() % numavailableipservices);
         int urlnr = availableurlnrs[p];
-        if (numavailableipservices > 0 && lasturlnr >= 0)
+        if (numavailableipservices > 0 && !needaddlasturl)
         {
                 int tries = 0;
-                int maxtries = 2;
-                while (urlnr == lasturlnr && tries < maxtries)
+                while (urlnr == lasturlnr && tries < MAXCHOOSERETRIES)
                 {
                         p = (rand() % numavailableipservices);
                         urlnr = availableurlnrs[p];
                         ++tries;
+                        int priority = get_priority_ipservice(db, urlnr);
+                        if (priority > 1 && priority <= MAXPRIORITY) {
+                                if (rand() % priority != 0) {
+                                        if (verbosemode) {
+                                                printf("Choose different number again.\n");
+                                        }
+
+                                        p = (rand() % numavailableipservices);
+                                        urlnr = availableurlnrs[p];
+                                }
+                        }
                 }
 
-                if (urlnr == lasturlnr && tries == maxtries && !silentmode) {
+                if (urlnr == lasturlnr && tries == MAXCHOOSERETRIES && !silentmode) {
                         printf("Maximum number of retries choicing different urlnr reached.\n\
- Use same urlnr as last run.\n");
+ Could not avoid to use same urlnr as in last run.\n");
                 }
         }
 
@@ -553,26 +569,26 @@ int main(int argc, char **argv)
                 create_table_config(db, settings.verbosemode);
                 add_config_value_int(db, "lasturlnr", -2, settings.verbosemode);
                 /* added default ipservice records */
-                add_ipservice(db, 0, "https://ipinfo.io/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, 2, settings.verbosemode);
-                add_ipservice(db, 2, "https://wtfismyip.com/text", false, 2, settings.verbosemode);
-                add_ipservice(db, 3, "https://v4.ident.me/", false, 2, settings.verbosemode);
-                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, 2, settings.verbosemode);
-                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, 2, settings.verbosemode);
-                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, 2, settings.verbosemode);
-                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, 2, settings.verbosemode);
-                add_ipservice(db, 8, "https://l2.io/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 9, "https://www.trackip.net/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 10, "https://ip4.seeip.org/", false, 2, settings.verbosemode);
-                add_ipservice(db, 11, "https://locate.now.sh/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 12, "https://tnx.nl/ip", false, 2, settings.verbosemode);
-                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, 2, settings.verbosemode);
-                add_ipservice(db, 14, "https://ip4.seeip.org/", false, 2, settings.verbosemode);
-                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, 1, settings.verbosemode);
-                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, 1, settings.verbosemode);
-                add_ipservice(db, 17, "http://myexternalip.com/raw", false, 1, settings.verbosemode);
-                add_ipservice(db, 18, "https://ipecho.net/plain", false, 2, settings.verbosemode);
-                add_ipservice(db, 19, "http://plain-text-ip.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 0, "https://ipinfo.io/ip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 2, "https://wtfismyip.com/text", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 3, "https://v4.ident.me/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 8, "https://l2.io/ip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 9, "https://www.trackip.net/ip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 10, "https://ip4.seeip.org/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 11, "https://locate.now.sh/ip", false, PROTOCOLHTTPS, 2, settings.verbosemode);
+                add_ipservice(db, 12, "https://tnx.nl/ip", false, PROTOCOLHTTPS, 3, settings.verbosemode);
+                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 14, "https://ip4.seeip.org/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, PROTOCOLHTTP, 1, settings.verbosemode);
+                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, PROTOCOLHTTP, 1, settings.verbosemode);
+                add_ipservice(db, 17, "http://myexternalip.com/raw", false, PROTOCOLHTTP, 1, settings.verbosemode);
+                add_ipservice(db, 18, "https://ipecho.net/plain", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                add_ipservice(db, 19, "http://plain-text-ip.com/", false, PROTOCOLHTTP, 2, settings.verbosemode);
         }
 
         int  num_all_urls = get_count_all_ipservices(db);

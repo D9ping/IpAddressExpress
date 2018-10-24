@@ -26,9 +26,11 @@
 
 #define MAXLENURL          1023
 #define MAXLENCONFIGSTR    255
+#define MAXPRIORITY        9
 
 /**
  * Create table ipservice with all ipservices to possible use.
+ * @param verbosemode Print a message if ipservice table is successfully created.
  */
 int create_table_ipservice(sqlite3 *db, bool verbosemode)
 {
@@ -39,6 +41,7 @@ int create_table_ipservice(sqlite3 *db, bool verbosemode)
  `disabled` TINYINT NOT NULL DEFAULT 0, \
  `protocoltype` TINYINT NOT NULL, \
  `url` TEXT(1023) NOT NULL, \
+ `priority` TINYINT(10) NOT NULL DEFAULT 1, \
  `lastErrorOn` NUMERIC );", -1, &stmt, NULL);
         retcode = sqlite3_step(stmt);
         if (retcode != SQLITE_DONE) {
@@ -59,13 +62,19 @@ int create_table_ipservice(sqlite3 *db, bool verbosemode)
  * @param url          The url or address of the ipservice.
  * @param disabled     Is the ipservice disabled.
  * @param protocoltype The protocol type to use. 0 for dns(not yet implemented), protocoltype = 1 for http,
-                    and protocoltype = 2 for https.
+                       and protocoltype = 2 for https.
+ * @param priority     The priority of the ipservice to use. From 1(most favourable) till 10(least favourable to use) at most.
  * @param verbosemode  Print a message if ipservice is succesfully added to database.
  */
-int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int protocoltype, bool verbosemode)
+int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int protocoltype, int priority, bool verbosemode)
 {
         if (protocoltype < 0 || protocoltype > 2) {
                 exit(EXIT_FAILURE);
+        }
+
+        if (priority < 1 || priority > MAXPRIORITY) {
+                exit(EXIT_FAILURE);
+
         }
 
         if (strlen(url) >= MAXLENURL) {
@@ -75,12 +84,13 @@ int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int protoco
 
         int retcode;
         sqlite3_stmt *stmt = NULL;
-        sqlite3_prepare_v2(db, "INSERT INTO `ipservice` (`nr`, `disabled`, `protocoltype`, `url`)\
- VALUES (?1, ?2, ?3, ?4);", -1, &stmt, NULL);
+        sqlite3_prepare_v2(db, "INSERT INTO `ipservice` (`nr`, `disabled`, `protocoltype`, `url`, `priority`)\
+ VALUES (?1, ?2, ?3, ?4, ?5);", -1, &stmt, NULL);
         sqlite3_bind_int(stmt, 1, urlnr);
         sqlite3_bind_int(stmt, 2, disabled);
         sqlite3_bind_int(stmt, 3, protocoltype);
         sqlite3_bind_text(stmt, 4, url, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 5, priority);
         retcode = sqlite3_step(stmt);
         if (retcode != SQLITE_DONE) {
                 printf("ERROR inserting data: %s\n", sqlite3_errmsg(db));
@@ -197,6 +207,28 @@ int update_disabled_ipsevice(sqlite3 *db, int urlnr, bool addtimestamp)
 
         sqlite3_finalize(stmt);
         return retcode;
+}
+
+/**
+ * Get the priority of a ipservice.
+ * @param urlnr The ipservice to get the priority from.
+ */
+const int get_priority_ipservice(sqlite3 *db, int urlnr)
+{
+        int priority = -1;
+        sqlite3_stmt *stmt = NULL;
+        sqlite3_prepare_v2(db,
+                           "SELECT `priority` FROM `ipservice` WHERE `nr` = ?1 LIMIT 1;",
+                           255,
+                           &stmt,
+                           NULL);
+        sqlite3_bind_int(stmt, 1, urlnr);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+                priority = sqlite3_column_int(stmt, 0);
+        }
+
+        sqlite3_finalize(stmt);
+        return priority;
 }
 
 /**
