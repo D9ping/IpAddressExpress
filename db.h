@@ -4,7 +4,7 @@
 
 int create_table_ipservice(sqlite3 *db, bool verbosemode);
 
-int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, bool verbosemode);
+int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int protocoltype, bool verbosemode);
 
 int get_count_all_ipservices(sqlite3 *db);
 

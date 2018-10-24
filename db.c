@@ -27,6 +27,9 @@
 #define MAXLENURL          1023
 #define MAXLENCONFIGSTR    255
 
+/**
+ * Create table ipservice with all ipservices to possible use.
+ */
 int create_table_ipservice(sqlite3 *db, bool verbosemode)
 {
         int retcode;
@@ -34,7 +37,7 @@ int create_table_ipservice(sqlite3 *db, bool verbosemode)
         sqlite3_prepare_v2(db, "CREATE TABLE IF NOT EXISTS `ipservice` ( \
  `nr` INT PRIMARY KEY NOT NULL, \
  `disabled` TINYINT NOT NULL DEFAULT 0, \
- `type` TINYINT NOT NULL, \
+ `protocoltype` TINYINT NOT NULL, \
  `url` TEXT(1023) NOT NULL, \
  `lastErrorOn` NUMERIC );", -1, &stmt, NULL);
         retcode = sqlite3_step(stmt);
@@ -50,14 +53,18 @@ int create_table_ipservice(sqlite3 *db, bool verbosemode)
 
 
 /**
-        Add a ipservice to the ipservice database table.
-        ipservice:
-        if disabled is true then the ipservice has a pernament error and should not be used.
-        type = 0 for dns(not supported), type = 1 for http, type = 2 for https
+ * Add an https/http or dns ip service to the ipservice database table.
+ * if disabled is true then the ipservice has a persistent error and should not be used anymore.
+ * @param urlnr        The ipservice number.
+ * @param url          The url or address of the ipservice.
+ * @param disabled     Is the ipservice disabled.
+ * @param protocoltype The protocol type to use. 0 for dns(not yet implemented), protocoltype = 1 for http,
+                    and protocoltype = 2 for https.
+ * @param verbosemode  Print a message if ipservice is succesfully added to database.
  */
-int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, bool verbosemode)
+int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int protocoltype, bool verbosemode)
 {
-        if (type < 0 || type > 2) {
+        if (protocoltype < 0 || protocoltype > 2) {
                 exit(EXIT_FAILURE);
         }
 
@@ -68,11 +75,11 @@ int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, b
 
         int retcode;
         sqlite3_stmt *stmt = NULL;
-        sqlite3_prepare_v2(db, "INSERT INTO `ipservice` (`nr`, `disabled`, `type`, `url`)\
+        sqlite3_prepare_v2(db, "INSERT INTO `ipservice` (`nr`, `disabled`, `protocoltype`, `url`)\
  VALUES (?1, ?2, ?3, ?4);", -1, &stmt, NULL);
         sqlite3_bind_int(stmt, 1, urlnr);
         sqlite3_bind_int(stmt, 2, disabled);
-        sqlite3_bind_int(stmt, 3, type);
+        sqlite3_bind_int(stmt, 3, protocoltype);
         sqlite3_bind_text(stmt, 4, url, -1, SQLITE_STATIC);
         retcode = sqlite3_step(stmt);
         if (retcode != SQLITE_DONE) {
@@ -85,10 +92,9 @@ int add_ipservice(sqlite3 *db, int urlnr, char * url, bool disabled, int type, b
         return retcode;
 }
 
-
 /**
-        Get the number of ipservices in the ipservice table.
-*/
+ * Get the number of ipservices in the ipservice table.
+ */
 int get_count_all_ipservices(sqlite3 *db)
 {
         int cntall = 0;
@@ -106,13 +112,16 @@ int get_count_all_ipservices(sqlite3 *db)
         return cntall;
 }
 
-
+/**
+ * Get the number of available ipservices.
+ * @param allowedprotocoltypes The allowed protocols to use.
+ */
 int get_count_available_ipservices(sqlite3 *db, int allowedprotocoltypes)
 {
         int cntavailable = 0;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
-                           "SELECT COUNT(`nr`) FROM `ipservice` WHERE `disabled` = 0 AND type >= ?1 LIMIT 1;",
+                           "SELECT COUNT(`nr`) FROM `ipservice` WHERE `disabled` = 0 AND protocoltype >= ?1 LIMIT 1;",
                            -1,
                            &stmt,
                            NULL);
@@ -125,10 +134,10 @@ int get_count_available_ipservices(sqlite3 *db, int allowedprotocoltypes)
         return cntavailable;
 }
 
-
 /**
-        Get the url for a ipservice number.
-*/
+ * Get the url for a ipservice number.
+ * @param urlnr The ipservice number to get the url from.
+ */
 const char * get_url_ipservice(sqlite3 *db, int urlnr)
 {
         const char *url;
@@ -153,7 +162,11 @@ const char * get_url_ipservice(sqlite3 *db, int urlnr)
         return urlipservice;
 }
 
-
+/**
+ * Disable an ipservice.
+ * @param urlnr        The number of the ipservice to disable.
+ * @param addtimestamp Add a timestamp on the time the ipservice was disabled on.
+ */
 int update_disabled_ipsevice(sqlite3 *db, int urlnr, bool addtimestamp)
 {
         int retcode = 0;
@@ -186,13 +199,18 @@ int update_disabled_ipsevice(sqlite3 *db, int urlnr, bool addtimestamp)
         return retcode;
 }
 
-
+/**
+ * Get a array with the numbers of ipservices requested.
+ * @param urlnr
+ * @param disabled
+ * @param allowedprotocoltypes
+ */
 void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled, int allowedprotocoltypes)
 {
         int i = 0;
         sqlite3_stmt *stmt = NULL;
         sqlite3_prepare_v2(db,
-                            "SELECT `nr` FROM `ipservice` WHERE `disabled` = ?1 AND type >= ?2;",
+                            "SELECT `nr` FROM `ipservice` WHERE `disabled` = ?1 AND protocoltype >= ?2;",
                             -1,
                             &stmt,
                             NULL);
@@ -208,9 +226,9 @@ void get_urlnrs_ipservices(sqlite3 *db, int urlnrs[], int disabled, int allowedp
         sqlite3_finalize(stmt);
 }
 
-
 /**
  * Re-enable all the expired temporary disabled ipservice with a SQL query.
+ * @param blockseconds The number of seconds the disabling
  */
 int reenable_expired_disabled_ipservices(sqlite3 *db, int blockseconds)
 {
@@ -232,9 +250,9 @@ int reenable_expired_disabled_ipservices(sqlite3 *db, int blockseconds)
         return retcode;
 }
 
-
 /**
-        Create config table.
+ * Create config table.
+ * @param verbosemode Print a message if config table is created succesfully.
  */
 int create_table_config(sqlite3 *db, bool verbosemode)
 {
@@ -255,7 +273,10 @@ int create_table_config(sqlite3 *db, bool verbosemode)
         return retcode;
 }
 
-
+/**
+ * Get the config integer value with a certain name.
+ * @param name The name to get the config integer value from.
+ */
 int get_config_value_int(sqlite3 *db, char * name)
 {
         int value_int = -1;
@@ -276,7 +297,10 @@ int get_config_value_int(sqlite3 *db, char * name)
         return value_int;
 }
 
-
+/**
+ * Get the config string(char array) value.
+ * @param name The name to get the string(char array) config value from.
+ */
 char * get_config_value_str(sqlite3 *db, char * name)
 {
         int configstrlen = MAXLENCONFIGSTR * sizeof(char);
@@ -301,7 +325,12 @@ char * get_config_value_str(sqlite3 *db, char * name)
         return configvaluestr;
 }
 
-
+/**
+ * Add a new config value integer.
+ * @param name        The lookup name of the config to add.
+ * @param value       The integer configuration value.
+ * @param verbosemode Print message if config added succesfully to database.
+ */
 int add_config_value_int(sqlite3 *db, char * name, int value, bool verbosemode)
 {
         int retcode;
@@ -321,7 +350,12 @@ int add_config_value_int(sqlite3 *db, char * name, int value, bool verbosemode)
         return retcode;
 }
 
-
+/**
+ * Add a new config string value.
+ * @param name        The lookup name of the config to add.
+ * @param value       The string(char array) configuration value.
+ * @param verbosemode Print message if config added succesfully to database.
+ */
 int add_config_value_str(sqlite3 *db, char *name, char * value, bool verbosemode)
 {
         int retcode;
@@ -341,7 +375,12 @@ int add_config_value_str(sqlite3 *db, char *name, char * value, bool verbosemode
         return retcode;
 }
 
-
+/**
+ * Change the integer config value.
+ * @param name        The lookup name of the config to add.
+ * @param valuenew    The new integer configuration value.
+ * @param verbosemode Print message if config updated succesfully in database.
+ */
 int update_config_value_int(sqlite3 *db, char * name, int valuenew, bool verbosemode)
 {
         int retcode = 0;
@@ -365,7 +404,12 @@ int update_config_value_int(sqlite3 *db, char * name, int valuenew, bool verbose
         return retcode;
 }
 
-
+/**
+ * Change the string config value.
+ * @param name        The lookup name of the config to add.
+ * @param valuenew    The new string configuration value.
+ * @param verbosemode Print message if config updated succesfully in database.
+ */
 int update_config_value_str(sqlite3 *db, char * name, const char * valuenew, bool verbosemode)
 {
         if (strlen(valuenew) > MAXLENCONFIGSTR) {
@@ -393,7 +437,10 @@ int update_config_value_str(sqlite3 *db, char * name, const char * valuenew, boo
         return retcode;
 }
 
-
+/**
+ * Check if configuration exists in database config table.
+ * @param name The lookup name of the config to check if it exists.
+ */
 bool is_config_exists(sqlite3 *db, char *name)
 {
         int value_int = 0;

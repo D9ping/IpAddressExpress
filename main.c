@@ -28,8 +28,10 @@
 #include "db.h"
 
 #define PROGRAMNAME           "PublicIpChangeDetector"
-#define PROGRAMVERSION        "0.9.1-beta"
+#define PROGRAMVERSION        "0.9.2-beta"
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/PublicIpChangeDetector)"
+#define DATABASEFILENAME      "picdconfig.db"
+#define CONFIGNAMEPREVIP      "lastrunip"
 #define SEED_LENGTH           32
 #define IPV6_TEXT_LENGTH      34
 #define MAXNUMSECDELAY        60
@@ -49,6 +51,7 @@ struct Settings {
         bool retryposthook;
         bool showip;
         bool unsafehttp;
+        bool unsafedns;
 };
 
 
@@ -68,7 +71,7 @@ int is_valid_ipv4_addr(char *ipv4addr)
     Get a new urlnr that is available to choice.
     @return A random number between 0 and maxurls.
 */
-int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool verbosemode, bool silentmode)
+int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verbosemode, bool silentmode)
 {
         if (verbosemode) {
                 printf("Choose random urlnr.\n");
@@ -91,8 +94,10 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool verbosemode, bool si
                 exit(EXIT_FAILURE);
         }
 
-        int allowedprotocoltypes = 1;
+        int allowedprotocoltypes = 2;
         if (unsafehttp) {
+                allowedprotocoltypes = 1;
+        } else if (unsafedns) {
                 allowedprotocoltypes = 0;
         }
 
@@ -441,6 +446,8 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
                         settings.retryposthook = true;
                 } else if (strcmp(argv[n], "--showip") == 0) {
                         settings.showip = true;
+                } else if (strcmp(argv[n], "--unsafedns") == 0) {
+                        settings.unsafedns = true;
                 } else if (strcmp(argv[n], "--unsafehttp") == 0) {
                         settings.unsafehttp = true;
                 } else if (strcmp(argv[n], "--failsilent") == 0) {
@@ -485,6 +492,7 @@ int main(int argc, char **argv)
         settings.errorwait = 14400;  // 4 hours
         settings.retryposthook = false;
         settings.unsafehttp = false;
+        settings.unsafedns = false;
         settings.showip = false;
         settings.silentmode = false;
         settings.verbosemode = false;
@@ -500,6 +508,7 @@ int main(int argc, char **argv)
                 printf("settings.showip = %d\n", settings.showip);
                 printf("settings.silentmode = %d\n", settings.silentmode);
                 printf("settings.unsafehttp = %d\n", settings.unsafehttp);
+                printf("settings.unsafedns = %d\n", settings.unsafedns);
                 printf("settings.retryposthook = %d\n", settings.retryposthook);
                 printf("settings.argnposthook = %d\n", settings.argnposthook);
                 if (settings.argnposthook > 1) {
@@ -521,17 +530,17 @@ int main(int argc, char **argv)
         }
 
         bool dbsetup = false;
-        if (access("data.db", F_OK) == -1 ) {
+        if (access(DATABASEFILENAME, F_OK) == -1 ) {
                 dbsetup = true;
                 if (settings.verbosemode) {
-                        printf("data.db does not exists.\n");
+                        printf("%s does not exists. Creating %s.\n", DATABASEFILENAME, DATABASEFILENAME);
                 }
         }
 
         /* Setup database connection */
         sqlite3 *db;
         int rc;
-        rc = sqlite3_open("data.db", &db);
+        rc = sqlite3_open(DATABASEFILENAME, &db);
         if (rc) {
                 fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
                 return(0);
@@ -544,26 +553,26 @@ int main(int argc, char **argv)
                 create_table_config(db, settings.verbosemode);
                 add_config_value_int(db, "lasturlnr", -2, settings.verbosemode);
                 /* added default ipservice records */
-                add_ipservice(db, 0, "https://ipinfo.io/ip", false, 1, settings.verbosemode);
-                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, 1, settings.verbosemode);
-                add_ipservice(db, 2, "https://wtfismyip.com/text", false, 1, settings.verbosemode);
-                add_ipservice(db, 3, "https://v4.ident.me/", false, 1, settings.verbosemode);
-                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, 1, settings.verbosemode);
-                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, 1, settings.verbosemode);
-                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, 1, settings.verbosemode);
-                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, 1, settings.verbosemode);
-                add_ipservice(db, 8, "https://l2.io/ip", false, 1, settings.verbosemode);
-                add_ipservice(db, 9, "https://www.trackip.net/ip", false, 1, settings.verbosemode);
-                add_ipservice(db, 10, "https://ip4.seeip.org/", false, 1, settings.verbosemode);
-                add_ipservice(db, 11, "https://locate.now.sh/ip", false, 1, settings.verbosemode);
-                add_ipservice(db, 12, "https://tnx.nl/ip", false, 1, settings.verbosemode);
-                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, 1, settings.verbosemode);
-                add_ipservice(db, 14, "https://ip4.seeip.org/", false, 1, settings.verbosemode);
-                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, 0, settings.verbosemode);
-                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, 0, settings.verbosemode);
-                add_ipservice(db, 17, "http://myexternalip.com/raw", false, 0, settings.verbosemode);
-                add_ipservice(db, 18, "https://ipecho.net/plain", false, 1, settings.verbosemode);
-                add_ipservice(db, 19, "http://plain-text-ip.com/", false, 0, settings.verbosemode);
+                add_ipservice(db, 0, "https://ipinfo.io/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 1, "https://api.ipify.org/?format=text", false, 2, settings.verbosemode);
+                add_ipservice(db, 2, "https://wtfismyip.com/text", false, 2, settings.verbosemode);
+                add_ipservice(db, 3, "https://v4.ident.me/", false, 2, settings.verbosemode);
+                add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, 2, settings.verbosemode);
+                add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, 2, settings.verbosemode);
+                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, 2, settings.verbosemode);
+                add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, 2, settings.verbosemode);
+                add_ipservice(db, 8, "https://l2.io/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 9, "https://www.trackip.net/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 10, "https://ip4.seeip.org/", false, 2, settings.verbosemode);
+                add_ipservice(db, 11, "https://locate.now.sh/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 12, "https://tnx.nl/ip", false, 2, settings.verbosemode);
+                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, 2, settings.verbosemode);
+                add_ipservice(db, 14, "https://ip4.seeip.org/", false, 2, settings.verbosemode);
+                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, 1, settings.verbosemode);
+                add_ipservice(db, 17, "http://myexternalip.com/raw", false, 1, settings.verbosemode);
+                add_ipservice(db, 18, "https://ipecho.net/plain", false, 2, settings.verbosemode);
+                add_ipservice(db, 19, "http://plain-text-ip.com/", false, 1, settings.verbosemode);
         }
 
         int  num_all_urls = get_count_all_ipservices(db);
@@ -574,7 +583,8 @@ int main(int argc, char **argv)
                 }
         }
 
-        int urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.verbosemode, settings.silentmode);
+        int urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.unsafedns,
+                                         settings.verbosemode, settings.silentmode);
         const char *urlipservice;
         urlipservice = get_url_ipservice(db, urlnr);
         if (settings.verbosemode) {
@@ -601,15 +611,16 @@ int main(int argc, char **argv)
         }
 
         char *ipaddrconfirm;
-        if (is_config_exists(db, "ipwas") == true) {
-                ipaddrconfirm = get_config_value_str(db, "ipwas");
+        if (is_config_exists(db, CONFIGNAMEPREVIP) == true) {
+                ipaddrconfirm = get_config_value_str(db, CONFIGNAMEPREVIP);
         } else {
                 if (settings.verbosemode) {
                         printf("First run of %s.\n", PROGRAMNAME);
                 }
 
                 const char *confirmurl;
-                urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.verbosemode, settings.silentmode);
+                urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.unsafedns,
+                                             settings.verbosemode, settings.silentmode);
                 confirmurl = get_url_ipservice(db, urlnr);
                 if (settings.verbosemode) {
                         printf("Using %s to confirm current public ip address with.\n", confirmurl);
@@ -655,7 +666,8 @@ int main(int argc, char **argv)
  run.\n");
                 }
 
-                urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.verbosemode, settings.silentmode);
+                urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.unsafedns,
+                                             settings.verbosemode, settings.silentmode);
                 const char *confirmchangeurl;
                 confirmchangeurl = get_url_ipservice(db, urlnr);
                 if (settings.verbosemode) {
@@ -746,21 +758,21 @@ int main(int argc, char **argv)
                                         printf("%s", ipaddrnow);
                                 }
 
-                                // Run posthook next time again because ipwas is not updated to new ip in database.
+                                // Run posthook next time again because CONFIGNAMEPREVIP is not updated to new ip in database.
                                 exit(EXIT_FAILURE);
                         }
                 }
 
-                if (is_config_exists(db, "ipwas") == true) {
-                        update_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
+                if (is_config_exists(db, CONFIGNAMEPREVIP) == true) {
+                        update_config_value_str(db, CONFIGNAMEPREVIP, ipaddrnow, settings.verbosemode);
                 } else {
-                        add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
+                        add_config_value_str(db, CONFIGNAMEPREVIP, ipaddrnow, settings.verbosemode);
                 }
         } else if (settings.verbosemode) {
                 printf("The current public ip is the same as the public ip from last ipservice.\n");
-                if (is_config_exists(db, "ipwas") == false) {
-                        // Readded missing ipwas config value.
-                        add_config_value_str(db, "ipwas", ipaddrnow, settings.verbosemode);
+                if (is_config_exists(db, CONFIGNAMEPREVIP) == false) {
+                        // Readded missing CONFIGNAMEPREVIP config value.
+                        add_config_value_str(db, CONFIGNAMEPREVIP, ipaddrnow, settings.verbosemode);
                 }
         }
 
