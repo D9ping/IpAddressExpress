@@ -98,7 +98,10 @@ No, PublicIpChangeDetector can just run fine as a lower privilege  user as long 
 ###### Are all the pubic ip service's hardcoded in the application?
 All the ipservices that are used are stored in a SQLite database file. If the SQLite database file exists you can remove, disable or add any public ip services with standard SQL. If the SQLite database file does not exist then the SQLite database file is created and about 20 public ip services are added to the database file by default to use.
 
+###### Can i use this application or sourcecode in closed source software?
+No, the GNU Public License forbids it. 
+You can contact me as copyright holder and ask me to provide you with a close source version(non GPL) version for a small fee.
 
 ## Support 
-If you find it useful, consider buying me a drink.
+This project is free as in freedom, if you get it as free as in free beer depends on you.
 [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/badge.svg?style=beer-square)](https://beerpay.io/D9ping/PublicIpChangeDetector)  [![Beerpay](https://beerpay.io/D9ping/PublicIpChangeDetector/make-wish.svg?style=flat-square)](https://beerpay.io/D9ping/PublicIpChangeDetector?focus=wish)
