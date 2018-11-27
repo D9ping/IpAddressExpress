@@ -661,11 +661,11 @@ int main(int argc, char **argv)
                         exit(EXIT_FAILURE);
                 }
 
-                // Check for ip address different between the two requuested services on first run.
+                // Check for ip address different between the two requested services on first run.
                 if (strcmp(ipaddrnow, ipaddrconfirm) != 0) {
                         if (!settings.silentmode) {
                                 fprintf(stderr, "Alert: one of the ip address services\
- could have lied to us.\nTry getting public ip again on next run.\n");
+ could have lied to us.\nTry getting public ip address again on next run.\n");
                                 fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
                                 fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm,
                                         confirmurl);
