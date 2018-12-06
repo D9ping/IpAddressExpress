@@ -7,10 +7,10 @@ Compared to shell scripts for figuring out the public IPv4 address PublicIpChang
 securely and more reliable detect the current public IPv4 address than using a single public ip service.
 It's more secure because it does not require to trust a single server and uses HTTPS for tamper protection.
 What makes PublicIpChangeDetector more secure is, that it requires consensus between two randomly selected public IPv4 address web services.
-Because of this it's not possible for a single public IPv4 address web service to fool the program
+Because of this it's not possible for a single public IPv4 address service to fool the program
  incorrectly thinking the public ip address has been changed.
-And by using multiple public IPv4 address web services the current public IPv4 can still be discovered after some time
- even when one or more public IPv4 web services are down.
+And by using multiple public IPv4 address services the current public IPv4 can still be discovered after some time
+ even when one or more public IPv4 services are down.
 PublicIpChangeDetector is written in C so it executes fast and efficiently.
  
 ### How PublicIpChangeDetector detects public IPv4 address change?
@@ -20,7 +20,7 @@ It then compares the result with the previous result to detect if the public IPv
 If change is detected from previous request, the change is confirmed with another randomly
  selected public IPv4 address HTTPS service so if one public IPv4 HTTPS service is lying, the lie is detected.
 If the public IPv4 address is valid and is different from last run the posthook command is executed
- with the new IPv4 address as first command line parameter.
+ with the new IPv4 address as a commandline argument.
 
 ### Flowchart of PublicIpChangeDetector operations ###
 A flowcharts of how PublicIpChangeDetector works:
@@ -64,7 +64,7 @@ You could do that but you are putting a lot of trust on one public IP address se
  or an errors from one public IP address service are spotted by using consensus with
  an other randomly selected public IP address service. This makes for example fooling your
  server on a dynamic public IPv4 address into thinking incorrectly it needs to update 
- dynamic DNS records hardly impossible.
+ dynamic DNS records almost impossible.
 
 ###### Why not ask my router for my public IP address?
 Good question. Well technically you could get the public IPv4 address from your router.
