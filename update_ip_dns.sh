@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# This bash/dash script is called by publicipchangedetector if the public ip address has changed
+# This bash/dash script is called by IpAddressExpress if the public ip address has changed
 # with the first argument being the new IPv4 address.
 if [ "$1" = "" ];
 then

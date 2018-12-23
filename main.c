@@ -22,7 +22,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <math.h>
 #include <arpa/inet.h>
 #include <curl/curl.h>
 #include <sqlite3.h>
@@ -31,7 +30,7 @@
 #define PROGRAMNAME           "IpAddressExpress"
 #define PROGRAMVERSION        "0.9.3-beta"
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/IpAddressExpress)"
-#define DATABASEFILENAME      "picdconfig.db"
+#define DATABASEFILENAME      "ipaddressexpress.db"
 #define CONFIGNAMEPREVIP      "lastrunip"
 #define SEED_LENGTH           32
 #define IPV6_TEXT_LENGTH      34
