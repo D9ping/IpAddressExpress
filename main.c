@@ -1,18 +1,18 @@
 /***************************************************************************
  *    Copyright (C) 2018 D9ping
  *
- * PublicIpChangeDetector is free software: you can redistribute it and/or modify
+ * IpAddressExpress is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * PublicIpChangeDetector is distributed in the hope that it will be useful,
+ * IpAddressExpress is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with PublicIpChangeDetector. If not, see <http://www.gnu.org/licenses/>.
+ * along with IpAddressExpress. If not, see <http://www.gnu.org/licenses/>.
  *
  ***************************************************************************/
 #define _GNU_SOURCE
@@ -28,9 +28,9 @@
 #include <sqlite3.h>
 #include "db.h"
 
-#define PROGRAMNAME           "PublicIpChangeDetector"
-#define PROGRAMVERSION        "0.9.2-beta"
-#define PROGRAMWEBSITE        " (+https://github.com/D9ping/PublicIpChangeDetector)"
+#define PROGRAMNAME           "IpAddressExpress"
+#define PROGRAMVERSION        "0.9.3-beta"
+#define PROGRAMWEBSITE        " (+https://github.com/D9ping/IpAddressExpress)"
 #define DATABASEFILENAME      "picdconfig.db"
 #define CONFIGNAMEPREVIP      "lastrunip"
 #define SEED_LENGTH           32
