@@ -93,7 +93,7 @@ Run ipaddressexpress with the -showip argument to always print the current publi
 Run ipaddressexpress with the -h command-line argument for help on all the possible command-line arguments to use.
 
 ###### Does IpAddressExpress need root rights?
-No, IpAddressExpress can just run fine as a lower privilege  user as long as it can read and write to the data.db sqlite database file. Data.db stores all ipservice IpAddressExpress can use and the information on the the last used ipservice. etc.
+No, IpAddressExpress can just run fine as a lower privilege  user as long as it can read and write to the sqlite database file. The sqlite database file stores all ipservice IpAddressExpress can use and the information of the the last used ipservice. etc.
 
 ###### Are all the pubic ip service's hardcoded in the application?
 All the services that are used are stored in a SQLite database file. If the SQLite database file exists you can remove, disable or add any public ip services with standard SQL. If the SQLite database file does not exist then the SQLite database file is created and about 20 public ip services are added to the database file by default to use.
