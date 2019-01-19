@@ -32,9 +32,8 @@ Install the required packages.
 ```
 sudo apt-get install build-essential libcurl4-openssl-dev libsqlite3-dev git-core
 ```
- Get the IpAddressExpress sourcecode in the folder /opt/ with:
+Get the IpAddressExpress sourcecode in the current folder with:
 ```
-cd /opt/
 git clone https://github.com/D9ping/IpAddressExpress.git
 ```
 Compile the program with: 
@@ -50,7 +49,7 @@ dynamic DNS entries with a bash script. Do the following:
 1. Run ```crontab -e``` to edit your crontab. 
 2. Add the following line to run IpAddressExpress every 10 minutes as current user.
 ```
-*/10 * * * * /opt/IpAddressExpress/ipaddressexpress --posthook "/bin/sh /opt/IpAddressExpress/update_ip_dns.sh"
+*/10 * * * * ~/IpAddressExpress/ipaddressexpress --posthook "/bin/sh ~/IpAddressExpress/update_ip_dns.sh"
 ``` 
 Edit the update_ip_dns.sh example bash script with your scripting for updating your dynamic DNS entries.
 
@@ -93,15 +92,7 @@ Run ipaddressexpress with the -showip argument to always print the current publi
 Run ipaddressexpress with the -h command-line argument for help on all the possible command-line arguments to use.
 
 ###### Does IpAddressExpress need root rights?
-No, IpAddressExpress can just run fine as a lower privilege  user as long as it can read and write to the sqlite database file. The sqlite database file stores all ipservice IpAddressExpress can use and the information of the the last used ipservice. etc.
+No, IpAddressExpress can just run fine as a lower privilege user as long as it can read and write to the sqlite database file. The sqlite database file stores all ipservice IpAddressExpress can use and the information of the the last used ipservice. etc.
 
 ###### Are all the pubic ip service's hardcoded in the application?
 All the services that are used are stored in a SQLite database file. If the SQLite database file exists you can remove, disable or add any public ip services with standard SQL. If the SQLite database file does not exist then the SQLite database file is created and about 20 public ip services are added to the database file by default to use.
-
-###### Can i use the sourcecode in closed source software?
-No, the GNU Public License forbids it. 
-You can contact me as copyright holder and ask me to provide you with a close source version(non GPL) version for a small fee.
-
-## Support 
-This project is free as in freedom, if you get it as free as in free beer depends on you.
-[![Beerpay](https://beerpay.io/D9ping/IpAddressExpress/badge.svg?style=beer-square)](https://beerpay.io/D9ping/IpAddressExpress)  [![Beerpay](https://beerpay.io/D9ping/IpAddressExpress/make-wish.svg?style=flat-square)](https://beerpay.io/D9ping/IpAddressExpress?focus=wish)
