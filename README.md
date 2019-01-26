@@ -71,19 +71,20 @@ But sadly every router manufacturer has a different webinterface for providing t
 And often the information is secured by a login screen. IpAddressExpress does not rely on the router and there fautures to provide the public IP address and because of this it just works for everyone where there is internet access.
 
 ###### What is the maximum downtime for my server could have if my public IP address changes?
-It depends on how often you run the publicipchangedetector program for detecting your public ip change.
+It depends on how often you run the ipaddressexpress program for detecting your public ip change.
 Also note that if a public ip address service lies to you it will take an extra publicipchangedetector run longer.
 And if you are using IpAddressExpress for DDNS then it also depends on how long the DNS entries that needs to change are cached by the DNS servers for the old DNS records to be removed from cache.
 
 ###### Should i run IpAddressExpress as often as possible?
-No, please be conservative on how often you run publicipchangedetector. Several public ip services are already serving a lot of requests. They don't like it you use too much bandwidth and they will ban/drop you or maybe send you 
-a http error if you are making too many requests too quickly.
+No, please be conservative on how often you run ipaddressexpress.
+Several public ip services are already serving a lot of requests. 
+They don't like it you use too much bandwidth and they will ban/drop you or may send you a http error itstead of your public ip address if you are making too many requests too quickly.
 
 ###### Does IpAddressExpress makes two request on execution? 
-No, it only make 1 http request if previous public ip address from last run is known.
+No, it only make 1 http request if the previous public ip address from last run is known.
 
 ###### What about IPv6?
-There is no need to support IPv6 as the server is given a internet routable IPv6 address from your router.
+There is no need to support IPv6 as a IPv6 is often a internet routable address.
 
 ###### How do i get the current public IPv4 address from commandline?
 Run ipaddressexpress with the -showip argument to always print the current public ip address.
