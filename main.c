@@ -28,7 +28,7 @@
 #include "db.h"
 
 #define PROGRAMNAME           "IpAddressExpress"
-#define PROGRAMVERSION        "0.9.3-beta"
+#define PROGRAMVERSION        "0.9.5-beta"
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/IpAddressExpress)"
 #define DATABASEFILENAME      "ipaddressexpress.db"
 #define CONFIGNAMEPREVIP      "lastrunip"
@@ -57,6 +57,7 @@ struct Settings {
         bool showip;
         bool unsafehttp;
         bool unsafedns;
+        bool tripleconfirm;
 };
 
 
@@ -183,6 +184,17 @@ void strip_on_newlinechar(char *str, int strlength)
                         return;
                 }
         }
+}
+
+
+/**
+    Print the different results from ip services
+*/
+void print_detected_difference(char * ipaddrnow, char * ipaddrconfirm, const char * urlipservice, const char * confirmurl)
+{
+        fprintf(stderr, "Alert: one of the ip address services could have lied.\n");
+        fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
+        fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm, confirmurl);
 }
 
 
@@ -465,6 +477,8 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
                         settings.unsafedns = true;
                 } else if (strcmp(argv[n], "--unsafehttp") == 0) {
                         settings.unsafehttp = true;
+                } else if (strcmp(argv[n], "--tripleconfirm") == 0) {
+                        settings.tripleconfirm = true;
                 } else if (strcmp(argv[n], "--failsilent") == 0) {
                         settings.silentmode = true;
                 } else if (strcmp(argv[n], "--version") == 0) {
@@ -485,6 +499,7 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
                         int errorwaithours = settings.errorwait / 3600;
                         printf("                By default %d seconds (%d hours).\n", settings.errorwait, errorwaithours);
                         printf("--failsilent    Fail silently do not print issues to stderr.\n");
+                        printf("--tripleconfirm Confirm ip address change with a additional third ip service.\n");
                         printf("--version       Print the version of this program and exit.\n");
                         printf("-v --verbose    Run in verbose mode, output what this program does.\n");
                         printf("-h --help       Print this help message.\n");
@@ -508,31 +523,11 @@ int main(int argc, char **argv)
         settings.retryposthook = false;
         settings.unsafehttp = false;
         settings.unsafedns = false;
+        settings.tripleconfirm = false;
         settings.showip = false;
         settings.silentmode = false;
         settings.verbosemode = false;
         settings = parse_commandline_args(argc, argv, settings);
-
-        /*
-        if (settings.verbosemode) {
-                // Display settings
-                printf(" --- Current program settings --- \n");
-                printf("settings.verbosemode = %d\n", settings.verbosemode);
-                printf("settings.secondsdelay = %d\n", settings.secondsdelay);
-                printf("settings.errorwait = %d\n", settings.errorwait);
-                printf("settings.showip = %d\n", settings.showip);
-                printf("settings.silentmode = %d\n", settings.silentmode);
-                printf("settings.unsafehttp = %d\n", settings.unsafehttp);
-                printf("settings.unsafedns = %d\n", settings.unsafedns);
-                printf("settings.retryposthook = %d\n", settings.retryposthook);
-                printf("settings.argnposthook = %d\n", settings.argnposthook);
-                if (settings.argnposthook > 1) {
-                        printf("posthook = '%s'\n", argv[settings.argnposthook]);
-                }
-
-                printf(" --------------------------------- \n");
-        }
-        */
 
         if (settings.secondsdelay > 0 && settings.secondsdelay < 60) {
                 if (settings.verbosemode) {
@@ -660,14 +655,16 @@ int main(int argc, char **argv)
                         exit(EXIT_FAILURE);
                 }
 
-                // Check for ip address different between the two requested services on first run.
+                // Check for ip address difference between the two requested services on first run.
                 if (strcmp(ipaddrnow, ipaddrconfirm) != 0) {
                         if (!settings.silentmode) {
-                                fprintf(stderr, "Alert: one of the ip address services\
- could have lied to us.\nTry getting public ip address again on next run.\n");
-                                fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
-                                fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm,
-                                        confirmurl);
+                                print_detected_difference(ipaddrnow, ipaddrconfirm, urlipservice, confirmurl);
+                                printf("Try getting current public ip address again on next run.\n");
+                                // fprintf(stderr, "Alert: one of the ip address services\
+ // could have lied to us.\nTry getting public ip address again on next run.\n");
+                                // fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
+                                // fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm,
+                                        // confirmurl);
                         }
 
                         exit(EXIT_FAILURE);
@@ -681,52 +678,62 @@ int main(int argc, char **argv)
  run.\n");
                 }
 
-                urlnr = get_new_random_urlnr(db, settings.unsafehttp, settings.unsafedns,
-                                             settings.verbosemode, settings.silentmode);
-                const char *confirmchangeurl;
-                confirmchangeurl = get_url_ipservice(db, urlnr);
-                if (settings.verbosemode) {
-                        printf("Public ip service %s is used to confirm ip address\n", confirmchangeurl);
+                int additionalconfirmruns = 1;
+                if (settings.tripleconfirm) {
+                        additionalconfirmruns = 2;
                 }
 
-                char *ipaddrconfirmchange;
-                int httpcodeconfirmchange = -2;
-                ipaddrconfirmchange = download_ipaddr_ipservice(ipaddrconfirmchange,
-                                                                confirmchangeurl,
-                                                                db,
-                                                                urlnr,
-                                                                settings.unsafehttp,
-                                                                settings.silentmode,
-                                                                &httpcodeconfirmchange);
-                parse_httpcode_status(httpcodeconfirmchange, db, urlnr);
+                for (int n = 0; n < additionalconfirmruns; n++) {
+                        urlnr = get_new_random_urlnr(db, 
+                                                     settings.unsafehttp,
+                                                     settings.unsafedns,
+                                                     settings.verbosemode,
+                                                     settings.silentmode);
+                        const char *confirmchangeurl;
+                        confirmchangeurl = get_url_ipservice(db, urlnr);
+                        if (settings.verbosemode) {
+                                printf("Public ip service %s is used to confirm ip address.\n", confirmchangeurl);
+                        }
 
-                if (is_valid_ipv4_addr(ipaddrconfirmchange) != 1) {
-                        if (!settings.silentmode) {
-                                fprintf(stderr, "Error: invalid IP(IPv4) address returned\
+                        char *ipaddrconfirmchange;
+                        int httpcodeconfirmchange = -2;
+                        ipaddrconfirmchange = download_ipaddr_ipservice(ipaddrconfirmchange,
+                                                                        confirmchangeurl,
+                                                                        db,
+                                                                        urlnr,
+                                                                        settings.unsafehttp,
+                                                                        settings.silentmode,
+                                                                        &httpcodeconfirmchange);
+                        parse_httpcode_status(httpcodeconfirmchange, db, urlnr);
+
+                        if (is_valid_ipv4_addr(ipaddrconfirmchange) != 1) {
+                                if (!settings.silentmode) {
+                                        fprintf(stderr, "Error: invalid IP(IPv4) address returned\
  from %s as confirm public ip service.\n", confirmchangeurl);
+                                }
+
+                                if (settings.showip) {
+                                        // Show old valid ip address.
+                                        printf("%s", ipaddrconfirm);
+                                }
+
+                                exit(EXIT_FAILURE);
                         }
 
-                        if (settings.showip) {
-                                // Show old valid ip address.
-                                printf("%s", ipaddrconfirm);
+                        // Check if new ip address with different service is the same new ip address.
+                        if (strcmp(ipaddrnow, ipaddrconfirmchange) != 0) {
+                                if (!settings.silentmode) {
+                                        print_detected_difference(ipaddrnow, ipaddrconfirmchange, urlipservice, confirmchangeurl);
+                                        fprintf(stderr, "It's now unknown if public ip address has actually changed.\n");
+                                }
+
+                                if (settings.showip) {
+                                        // Show old ip address.
+                                        printf("%s", ipaddrconfirm);
+                                }
+
+                                exit(EXIT_FAILURE);
                         }
-
-                        exit(EXIT_FAILURE);
-                }
-
-                // Check if new ip address with different service is the same new ip address.
-                if (strcmp(ipaddrnow, ipaddrconfirmchange) == 0) {
-                        if (!settings.silentmode) {
-                                fprintf(stderr, "Alert: the ip address service could have\
- lied to us.\nIt's now unknown if public ip address has actually changed.\n");
-                        }
-
-                        if (settings.showip) {
-                                // Show old ip address.
-                                printf("%s", ipaddrconfirm);
-                        }
-
-                        exit(EXIT_FAILURE);
                 }
 
                 if (settings.verbosemode) {

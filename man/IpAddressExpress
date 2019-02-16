@@ -1,5 +1,5 @@
 .\" Manpage for IpAddressExpress.
-.TH man 8 "23 dec 2018" "0.9.4" "IpAddressExpress man page"
+.TH man 8 "16 feb 2019" "0.9.5" "IpAddressExpress man page"
 .SH NAME
 IpAddressExpress \- Figure out the public IPv4 address confirmed with consensus.
 
@@ -27,6 +27,9 @@ without getting detected.
 --posthook      The command the execute if the current ip address is different from previous run.
 
 --retryposthook Rerun posthook on next run if posthook command fails.
+
+--tripleconfirm On detected ip address change confirm the changed ip address with
+                a third ip service to check if the ip change is correct.
 
 --failsilent    Fail silently don't print issues to stderr. To known if a error occured 
                 checking exit status will then be required.
