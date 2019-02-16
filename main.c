@@ -1,5 +1,5 @@
 /***************************************************************************
- *    Copyright (C) 2018 D9ping
+ *    Copyright (C) 2018-2019 D9ping
  *
  * IpAddressExpress is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -660,11 +660,6 @@ int main(int argc, char **argv)
                         if (!settings.silentmode) {
                                 print_detected_difference(ipaddrnow, ipaddrconfirm, urlipservice, confirmurl);
                                 printf("Try getting current public ip address again on next run.\n");
-                                // fprintf(stderr, "Alert: one of the ip address services\
- // could have lied to us.\nTry getting public ip address again on next run.\n");
-                                // fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
-                                // fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm,
-                                        // confirmurl);
                         }
 
                         exit(EXIT_FAILURE);
@@ -683,7 +678,7 @@ int main(int argc, char **argv)
                         additionalconfirmruns = 2;
                 }
 
-                for (int n = 0; n < additionalconfirmruns; n++) {
+                for (int i = 0; i < additionalconfirmruns; ++i) {
                         urlnr = get_new_random_urlnr(db, 
                                                      settings.unsafehttp,
                                                      settings.unsafedns,
