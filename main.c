@@ -738,6 +738,10 @@ int main(int argc, char **argv)
                 if (settings.argnposthook <= 1) {
                         if (!settings.silentmode) {
                                 fprintf(stderr, "Error: no posthook provided.\n");
+                                if (settings.showip) {
+                                        // Show current ip address.
+                                        printf("%s", ipaddrnow);
+                                }
                         }
 
                         exit(EXIT_FAILURE);
