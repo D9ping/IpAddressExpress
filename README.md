@@ -22,8 +22,8 @@ If change is detected from previous request, the change is confirmed with anothe
 If the public IPv4 address is valid and is different from last run the posthook command is executed
  with the new IPv4 address as a commandline argument.
 
-### Flowchart of IpAddressExpress operations ###
-A flowcharts of how IpAddressExpress works:
+### Flowchart ###
+A flowchart to explain how IpAddressExpress works:
 ![flowchart IpAddressExpress](https://raw.githubusercontent.com/D9ping/IpAddressExpress/master/docs/IpAddressExpress_flowchart_v3.png?raw=true)
 
 
