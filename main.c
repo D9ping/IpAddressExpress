@@ -111,14 +111,6 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
         int availableurlnrs[numavailableipservices];
         get_urlnrs_ipservices(db, availableurlnrs, 0, allowedprotocoltypes);
 
-        /*
-        // For debugging print availableurlnrs array.
-        if (verbosemode && !silentmode) {
-                for (int i = 0; i < numavailableipservices; ++i) {
-                        printf("availableurlnrs[%d] = %d.\n", i, availableurlnrs[i]);
-                }
-        }
-        */
 
         uint *seed = (uint *) malloc(SEED_LENGTH * sizeof(uint));
         int resreadrnd = fread(seed, sizeof(uint), SEED_LENGTH, rand_fd);
@@ -185,7 +177,6 @@ void strip_on_newlinechar(char *str, int strlength)
                 }
         }
 }
-
 
 /**
     Print the different results from ip services
@@ -278,6 +269,19 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         }
 }
 
+/**
+ * Get the current date and time in ISO8601 format without timezone.
+ * @return An character array of 19 bytes(without null terminator) with the current date and time.
+ */
+char * get_current_time_str(char *iso8601timebuf)
+{
+        time_t rawtime;
+        struct tm * timeinfo;
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        strftime(iso8601timebuf, 20, "%Y-%m-%d %H:%M:%S", timeinfo);
+        return iso8601timebuf;
+}
 
 /**
  * Download the ip address from a ipservice.
@@ -679,7 +683,7 @@ int main(int argc, char **argv)
                 }
 
                 for (int i = 0; i < additionalconfirmruns; ++i) {
-                        urlnr = get_new_random_urlnr(db, 
+                        urlnr = get_new_random_urlnr(db,
                                                      settings.unsafehttp,
                                                      settings.unsafedns,
                                                      settings.verbosemode,
