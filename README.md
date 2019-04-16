@@ -44,14 +44,14 @@ make
 
 ### Use of IpAddressExpress
 To use IpAddressExpress for check public IPv4 address change of a server and update the
-dynamic DNS entries with a bash script. Do the following:
+dynamic DNS entries with a shell script. Do the following:
 
 1. Run ```crontab -e``` to edit your crontab. 
 2. Add the following line to run IpAddressExpress every 10 minutes as current user.
 ```
 */10 * * * * ~/IpAddressExpress/ipaddressexpress --posthook "/bin/sh ~/IpAddressExpress/update_ip_dns.sh"
 ``` 
-Edit the update_ip_dns.sh example bash script with your scripting for updating your dynamic DNS entries.
+Edit the update_ip_dns.sh example shell script with your code for updating your dynamic DNS entries.
 
 
 ### Questions and Answers
