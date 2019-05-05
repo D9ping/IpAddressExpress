@@ -28,7 +28,7 @@
 #include "db.h"
 
 #define PROGRAMNAME           "IpAddressExpress"
-#define PROGRAMVERSION        "0.9.5-beta"
+#define PROGRAMVERSION        "0.9.6-beta"
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/IpAddressExpress)"
 #define DATABASEFILENAME      "ipaddressexpress.db"
 #define CONFIGNAMEPREVIP      "lastrunip"
@@ -122,6 +122,14 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
 
         srand(*seed);
         fclose(rand_fd);
+        if (numavailableipservices <= 0) {
+                if (!silentmode) {
+                        fprintf(stderr, "Error: no more ipservices available.\n");
+                }
+
+                exit(EXIT_FAILURE);
+        }
+
         // Choose a new random position in availableurlnrs. Between 0 and numavailableipservices.
         int p = (rand() % numavailableipservices);
         int urlnr = availableurlnrs[p];
@@ -618,7 +626,10 @@ int main(int argc, char **argv)
         if (is_valid_ipv4_addr(ipaddrnow) != 1) {
                 free(ipaddrnow);
                 if (!settings.silentmode) {
-                        fprintf(stderr, "Error: got invalid IP(IPv4) address '%s' from '%s'.\n", ipaddrnow, urlipservice);
+                        fprintf(stderr,
+                                "Error: got invalid IP(IPv4) address '%s' from '%s'.\n",
+                                ipaddrnow,
+                                urlipservice);
                 }
 
                 exit(EXIT_FAILURE);
@@ -722,7 +733,10 @@ int main(int argc, char **argv)
                         // Check if new ip address with different service is the same new ip address.
                         if (strcmp(ipaddrnow, ipaddrconfirmchange) != 0) {
                                 if (!settings.silentmode) {
-                                        print_detected_difference(ipaddrnow, ipaddrconfirmchange, urlipservice, confirmchangeurl);
+                                        print_detected_difference(ipaddrnow,
+                                                                  ipaddrconfirmchange,
+                                                                  urlipservice,
+                                                                  confirmchangeurl);
                                         fprintf(stderr, "It's now unknown if public ip address has actually changed.\n");
                                 }
 
