@@ -62,9 +62,63 @@ struct Settings {
 
 
 /**
-    Verify that a IPv4 address is valid by using inet_pton.
-    @return 1 if character array is valid IPv4 address.
-*/
+ * Get the current date and time in ISO8601 format without timezone.
+ * @return An character array of 19 bytes(without null terminator) with the current date and time.
+ */
+char * get_current_time_str(char *iso8601timebuf)
+{
+        time_t rawtime;
+        struct tm * timeinfo;
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        strftime(iso8601timebuf, 20, "%Y-%m-%d %H:%M:%S", timeinfo);
+        return iso8601timebuf;
+}
+
+/**
+ * Print time and date with an error message to stderr output.
+ * @param char[] errormsg
+ */
+void print_dt_error(char * errormsg)
+{
+        char * iso8601timebuf = malloc(20 * sizeof(char));
+        iso8601timebuf = get_current_time_str(iso8601timebuf);
+        fprintf(stderr, "%s %s", iso8601timebuf, errormsg);
+}
+
+/**
+ * Print date and time and error message with an url to stderr output.
+ * @param char[] errormsgformat The format of the error message.
+ * @param char[] url            The url added in the error message.
+ */
+void print_error_with_url(char * errormsgformat, const char * url)
+{
+        char errormsg[2304];
+        int cw;
+        cw = snprintf(errormsg,
+                      2304,
+                      errormsgformat,
+                      url);
+        if (cw >= 0 && cw <= 2304) {
+                print_dt_error(errormsg);
+        }
+}
+
+/**
+ * Print the different results from ip services
+ */
+void print_detected_difference(char * ipaddrnow, char * ipaddrconfirm, const char * urlipservice, const char * confirmurl)
+{
+        //fprintf(stderr, "Alert: one of the ip address services could have lied.\n");
+        print_dt_error("Alert: one of the ip address services could have lied.\n");
+        fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
+        fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm, confirmurl);
+}
+
+/**
+ * Verify that a IPv4 address is valid by using inet_pton.
+ * @return 1 if character array is valid IPv4 address.
+ */
 int is_valid_ipv4_addr(char *ipv4addr)
 {
         struct sockaddr_in sa;
@@ -74,9 +128,9 @@ int is_valid_ipv4_addr(char *ipv4addr)
 
 
 /**
-    Get a new urlnr that is available to choice.
-    @return A random number between 0 and maxurls.
-*/
+ * Get a new urlnr that is available to choice.
+ * @return A random number between 0 and maxurls.
+ */
 int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verbosemode, bool silentmode)
 {
         if (verbosemode) {
@@ -94,7 +148,7 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
         rand_fd = fopen("/dev/urandom", "r");
         if (rand_fd == NULL) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: could not open /dev/urandom\n");
+                        print_dt_error("Error: could not open /dev/urandom\n");
                 }
 
                 exit(EXIT_FAILURE);
@@ -124,7 +178,7 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
         fclose(rand_fd);
         if (numavailableipservices <= 0) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: no more ipservices available.\n");
+                        print_dt_error("Error: no more ipservices available.\n");
                 }
 
                 exit(EXIT_FAILURE);
@@ -172,9 +226,9 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
 
 
 /**
-    Strip everything in the character array from the new line character till the end
-    of the array. So str does not contain any new line character anymore.
-*/
+ * Strip everything in the character array from the new line character till the end
+ * of the array. So str does not contain any new line character anymore.
+ */
 void strip_on_newlinechar(char *str, int strlength)
 {
         for (int i = 0; i < strlength; ++i) {
@@ -187,20 +241,9 @@ void strip_on_newlinechar(char *str, int strlength)
 }
 
 /**
-    Print the different results from ip services
-*/
-void print_detected_difference(char * ipaddrnow, char * ipaddrconfirm, const char * urlipservice, const char * confirmurl)
-{
-        fprintf(stderr, "Alert: one of the ip address services could have lied.\n");
-        fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
-        fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm, confirmurl);
-}
-
-
-/**
-    Read a text file with ip address.
-    @return A character array with the ip address without a newline character.
-*/
+ * Read a text file with ip address.
+ * @return A character array with the ip address without a newline character.
+ */
 char * read_file_ipaddr(char *filepathip, bool silentmode)
 {
         size_t len = 0;
@@ -209,7 +252,7 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
         fpfileip = fopen(filepathip, "r");
         if (fpfileip == NULL) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: Could not get public ip from file.\n");
+                        print_dt_error("Error: Could not get public ip from file.\n");
                 }
 
                 exit(EXIT_FAILURE);
@@ -221,7 +264,7 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
         if (bytesread > IPV6_TEXT_LENGTH) {
                 fclose(fpfileip);
                 if (!silentmode) {
-                        fprintf(stderr, "Error: response server too long.\n");
+                        print_dt_error("Error: response server too long.\n");
                 }
 
                 exit(EXIT_FAILURE);
@@ -234,7 +277,7 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
 
 
 /**
-        Parse http status code.
+ * Parse http status code.
  */
 void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
 {
@@ -275,20 +318,6 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
                 update_disabled_ipsevice(db, urlnr, false);
                 break;
         }
-}
-
-/**
- * Get the current date and time in ISO8601 format without timezone.
- * @return An character array of 19 bytes(without null terminator) with the current date and time.
- */
-char * get_current_time_str(char *iso8601timebuf)
-{
-        time_t rawtime;
-        struct tm * timeinfo;
-        time(&rawtime);
-        timeinfo = localtime(&rawtime);
-        strftime(iso8601timebuf, 20, "%Y-%m-%d %H:%M:%S", timeinfo);
-        return iso8601timebuf;
 }
 
 /**
@@ -429,7 +458,7 @@ int read_commandline_argument_int_value(char * argumentval, bool silentmode)
         for (int i = 0; i < lenargumentval; ++i) {
                 if (!isdigit(argumentval[i])) {
                         if (!silentmode) {
-                                fprintf(stderr, "Error: invalid argument number value.\n");
+                                print_dt_error("Error: invalid argument number value.\n");
                         }
 
                         exit(EXIT_FAILURE);
@@ -463,7 +492,7 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
                         // Check length posthook
                         if (strlen(argv[n]) > MAXLENPATHPOSTHOOK) {
                                 if (!settings.silentmode) {
-                                        fprintf(stderr, "Error: posthook command too long.\n");
+                                        print_dt_error("Error: posthook command too long.\n");
                                 }
 
                                 exit(EXIT_FAILURE);
@@ -548,7 +577,15 @@ int main(int argc, char **argv)
 
                 sleep(settings.secondsdelay);
         } else if (settings.secondsdelay >= MAXNUMSECDELAY && !settings.silentmode) {
-            fprintf(stderr, "Ingoring secondsdelay. secondsdelay has to be less than %d seconds.\n", MAXNUMSECDELAY);
+                char errormsg[128];
+                int cw;
+                cw = snprintf(errormsg,
+                              128,
+                              "Ingoring secondsdelay. secondsdelay has to be less than %d seconds.\n",
+                              MAXNUMSECDELAY);
+                if (cw >= 0 && cw <= 128) {
+                        print_dt_error(errormsg);
+                }
         }
 
         bool dbsetup = false;
@@ -564,8 +601,8 @@ int main(int argc, char **argv)
         int rc;
         rc = sqlite3_open(DATABASEFILENAME, &db);
         if (rc) {
-                fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-                return(0);
+                print_dt_error("Can't open database file.\n");
+                exit(EXIT_FAILURE);
         } else if (settings.verbosemode) {
                 printf("Opened database successfully.\n");
         }
@@ -600,7 +637,7 @@ int main(int argc, char **argv)
         int  num_all_urls = get_count_all_ipservices(db);
         if (num_all_urls < 2) {
                 if (!settings.silentmode) {
-                        printf("No enough url's added to database need at least 2 services.\n");
+                        print_dt_error("No enough ipservices added to the database. Need at least 2 ipservices.\n");
                         exit(EXIT_FAILURE);
                 }
         }
@@ -610,7 +647,7 @@ int main(int argc, char **argv)
         const char *urlipservice;
         urlipservice = get_url_ipservice(db, urlnr);
         if (settings.verbosemode) {
-                printf("Use: %s for getting public IPv4 address.\n", urlipservice);
+                printf("Using %s for getting public IPv4 address.\n", urlipservice);
         }
 
         int httpcodestatus = 0;
@@ -626,10 +663,8 @@ int main(int argc, char **argv)
         if (is_valid_ipv4_addr(ipaddrnow) != 1) {
                 free(ipaddrnow);
                 if (!settings.silentmode) {
-                        fprintf(stderr,
-                                "Error: got invalid IP(IPv4) address '%s' from '%s'.\n",
-                                ipaddrnow,
-                                urlipservice);
+                        print_error_with_url("Error: invalid IPv4 address from '%s'.\n",
+                                             urlipservice);
                 }
 
                 exit(EXIT_FAILURE);
@@ -648,7 +683,7 @@ int main(int argc, char **argv)
                                              settings.verbosemode, settings.silentmode);
                 confirmurl = get_url_ipservice(db, urlnr);
                 if (settings.verbosemode) {
-                        printf("Using %s to confirm current public ip address with.\n", confirmurl);
+                        printf("Using %s to confirm current public IPv4 address with.\n", confirmurl);
                 }
 
                 int httpcodeconfirm = -1;
@@ -663,8 +698,8 @@ int main(int argc, char **argv)
                 if (is_valid_ipv4_addr(ipaddrconfirm) != 1) {
                         free(ipaddrconfirm);
                         if (!settings.silentmode) {
-                                fprintf(stderr, "Error: invalid IP(IPv4) address for first\
- run confirmation from %s.\n", confirmurl);
+                                print_error_with_url("Error: invalid IPv4 address for first run confirmation from %s.\n",
+                                                     confirmurl);
                         }
 
                         exit(EXIT_FAILURE);
@@ -674,7 +709,7 @@ int main(int argc, char **argv)
                 if (strcmp(ipaddrnow, ipaddrconfirm) != 0) {
                         if (!settings.silentmode) {
                                 print_detected_difference(ipaddrnow, ipaddrconfirm, urlipservice, confirmurl);
-                                printf("Try getting current public ip address again on next run.\n");
+                                printf("Try getting current public IPv4 address again on next run.\n");
                         }
 
                         exit(EXIT_FAILURE);
@@ -684,7 +719,7 @@ int main(int argc, char **argv)
         if (strcmp(ipaddrnow, ipaddrconfirm) != 0) {
                 // Ip address has changed.
                 if (settings.verbosemode) {
-                        printf("Public ip change detected, ip address different from last\
+                        printf("Public ip change detected, IPv4 address different from last\
  run.\n");
                 }
 
@@ -702,7 +737,7 @@ int main(int argc, char **argv)
                         const char *confirmchangeurl;
                         confirmchangeurl = get_url_ipservice(db, urlnr);
                         if (settings.verbosemode) {
-                                printf("Public ip service %s is used to confirm ip address.\n", confirmchangeurl);
+                                printf("Ipservice %s is used to confirm public IPv4 address.\n", confirmchangeurl);
                         }
 
                         char *ipaddrconfirmchange;
@@ -718,8 +753,8 @@ int main(int argc, char **argv)
 
                         if (is_valid_ipv4_addr(ipaddrconfirmchange) != 1) {
                                 if (!settings.silentmode) {
-                                        fprintf(stderr, "Error: invalid IP(IPv4) address returned\
- from %s as confirm public ip service.\n", confirmchangeurl);
+                                        print_error_with_url("Error: invalid IP(IPv4) address returned from confirm ipservice: %s\n",
+                                                             confirmchangeurl);
                                 }
 
                                 if (settings.showip) {
@@ -737,7 +772,7 @@ int main(int argc, char **argv)
                                                                   ipaddrconfirmchange,
                                                                   urlipservice,
                                                                   confirmchangeurl);
-                                        fprintf(stderr, "It's now unknown if public ip address has actually changed.\n");
+                                        print_dt_error("It's now unknown if public ip address has actually changed.\n");
                                 }
 
                                 if (settings.showip) {
@@ -755,7 +790,7 @@ int main(int argc, char **argv)
 
                 if (settings.argnposthook <= 1) {
                         if (!settings.silentmode) {
-                                fprintf(stderr, "Error: no posthook provided.\n");
+                                print_dt_error("Error: no posthook provided.\n");
                                 if (settings.showip) {
                                         // Show current ip address.
                                         printf("%s", ipaddrnow);
@@ -768,13 +803,13 @@ int main(int argc, char **argv)
                 char cmdposthook[MAXLENPATHPOSTHOOK + 1];
                 if (strchr(ipaddrnow, '"') != NULL) {
                         if (!settings.silentmode) {
-                                fprintf(stderr, "Error: quote(s) in ip address.\n");
+                                print_dt_error("Error: quote(s) in ip address.\n");
                         }
 
                         exit(EXIT_FAILURE);
                 } else if (strchr(argv[settings.argnposthook], '"') != NULL) {
                         if (!settings.silentmode) {
-                                fprintf(stderr, "Error: quote in posthook command.\n");
+                                print_dt_error("Error: quote in posthook command.\n");
                         }
 
                         exit(EXIT_FAILURE);
@@ -786,9 +821,15 @@ int main(int argc, char **argv)
                 unsigned short exitcode = system(cmdposthook);
                 if (exitcode != 0) {
                         if (!settings.silentmode) {
-                                fprintf(stderr,
-                                        "Error: script returned error (exitcode %hu).\n",
-                                        exitcode);
+                                char errormsg[64];
+                                int cw;
+                                cw = snprintf(errormsg,
+                                              64,
+                                              "Error: script returned error (exitcode %hu).\n",
+                                              exitcode);
+                                if (cw >= 0 && cw <= 64) {
+                                        print_dt_error(errormsg);
+                                }
                         }
 
                         if (settings.retryposthook) {

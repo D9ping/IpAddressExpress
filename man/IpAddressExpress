@@ -1,5 +1,5 @@
 .\" Manpage for IpAddressExpress.
-.TH man 8 "16 feb 2019" "0.9.5" "IpAddressExpress man page"
+.TH man 8 "9 may 2019" "0.9.6" "IpAddressExpress man page"
 .SH NAME
 IpAddressExpress \- Figure out the public IPv4 address confirmed with consensus.
 
