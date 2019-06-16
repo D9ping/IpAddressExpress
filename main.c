@@ -32,6 +32,7 @@
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/IpAddressExpress)"
 #define DATABASEFILENAME      "ipaddressexpress.db"
 #define CONFIGNAMEPREVIP      "lastrunip"
+#define CONFIGNAMELASTRUNDT   "lastrundatetime"
 #define SEED_LENGTH           32
 #define IPV6_TEXT_LENGTH      34
 #define MAXNUMSECDELAY        60
@@ -46,7 +47,6 @@
 #define PROTOCOLHTTPS         2
 typedef unsigned int          uint;
 
-
 struct Settings {
         int secondsdelay;
         int argnposthook;
@@ -55,11 +55,12 @@ struct Settings {
         bool silentmode;
         bool retryposthook;
         bool showip;
+        bool showlastrun;
+        bool savelastrun;
         bool unsafehttp;
         bool unsafedns;
         bool tripleconfirm;
 };
-
 
 /**
  * Get the current date and time in ISO8601 format without timezone.
@@ -126,7 +127,6 @@ int is_valid_ipv4_addr(char *ipv4addr)
         return result;
 }
 
-
 /**
  * Get a new urlnr that is available to choice.
  * @return A random number between 0 and maxurls.
@@ -164,8 +164,6 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
         const int numavailableipservices = get_count_available_ipservices(db, allowedprotocoltypes);
         int availableurlnrs[numavailableipservices];
         get_urlnrs_ipservices(db, availableurlnrs, 0, allowedprotocoltypes);
-
-
         uint *seed = (uint *) malloc(SEED_LENGTH * sizeof(uint));
         int resreadrnd = fread(seed, sizeof(uint), SEED_LENGTH, rand_fd);
         if (resreadrnd <= 0) {
@@ -224,7 +222,6 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
         return urlnr;
 }
 
-
 /**
  * Strip everything in the character array from the new line character till the end
  * of the array. So str does not contain any new line character anymore.
@@ -274,7 +271,6 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
         strip_on_newlinechar(ipaddrstr, bytesread);
         return ipaddrstr;
 }
-
 
 /**
  * Parse http status code.
@@ -468,7 +464,6 @@ int read_commandline_argument_int_value(char * argumentval, bool silentmode)
         return atoi(argumentval);
 }
 
-
 /**
  * Parse the command line arguments to the settings struct.
  */
@@ -514,6 +509,10 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
                         settings.retryposthook = true;
                 } else if (strcmp(argv[n], "--showip") == 0) {
                         settings.showip = true;
+                } else if (strcmp(argv[n], "--showlastrun") == 0) {
+                        settings.showlastrun = true;
+                } else if (strcmp(argv[n], "--nosavelastrun") == 0) {
+                        settings.savelastrun = false;
                 } else if (strcmp(argv[n], "--unsafedns") == 0) {
                         settings.unsafedns = true;
                 } else if (strcmp(argv[n], "--unsafehttp") == 0) {
@@ -533,6 +532,9 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
                         printf("--retryposthook Rerun posthook on next run if posthook command \n\
                 did not return 0 as exit code.\n");
                         printf("--showip        Always print the currently confirmed public IPv4 address.\n");
+                        printf("--showlastrun   Show the last date and time %s has been runnend\
+ and directly exit.\n", PROGRAMNAME);
+                        printf("--nosavelastrun Don't save the date and time of current run.\n");
                         printf("--unsafehttp    Allow the use of http public ip services, no TLS/SSL.\n");
                         printf("--delay 1-59    Delay the execution of this program with X number of seconds.\n");
                         printf("--errorwait n   The number of seconds that an ipservice that causes a temporary error\n");
@@ -553,7 +555,6 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
         return settings;
 }
 
-
 int main(int argc, char **argv)
 {
         struct Settings settings;
@@ -568,6 +569,8 @@ int main(int argc, char **argv)
         settings.showip = false;
         settings.silentmode = false;
         settings.verbosemode = false;
+        settings.showlastrun = false;
+        settings.savelastrun = true;
         settings = parse_commandline_args(argc, argv, settings);
 
         if (settings.secondsdelay > 0 && settings.secondsdelay < 60) {
@@ -581,7 +584,7 @@ int main(int argc, char **argv)
                 int cw;
                 cw = snprintf(errormsg,
                               128,
-                              "Ingoring secondsdelay. secondsdelay has to be less than %d seconds.\n",
+                              "Ignoring secondsdelay. secondsdelay has to be less than %d seconds.\n",
                               MAXNUMSECDELAY);
                 if (cw >= 0 && cw <= 128) {
                         print_dt_error(errormsg);
@@ -632,6 +635,17 @@ int main(int argc, char **argv)
                 add_ipservice(db, 17, "http://myexternalip.com/raw", false, PROTOCOLHTTP, 1, settings.verbosemode);
                 add_ipservice(db, 18, "https://ipecho.net/plain", false, PROTOCOLHTTPS, 1, settings.verbosemode);
                 add_ipservice(db, 19, "http://plain-text-ip.com/", false, PROTOCOLHTTP, 2, settings.verbosemode);
+        }
+
+        if (settings.showlastrun) {
+                char *lastrundt;
+                lastrundt = get_config_value_str(db, CONFIGNAMELASTRUNDT);
+                if (settings.verbosemode) {
+                        printf("Last run on: ");
+                }
+
+                printf("%s\n", lastrundt);
+                exit(EXIT_SUCCESS);
         }
 
         int  num_all_urls = get_count_all_ipservices(db);
@@ -713,6 +727,16 @@ int main(int argc, char **argv)
                         }
 
                         exit(EXIT_FAILURE);
+                }
+        }
+
+        if (settings.savelastrun) {
+                char * lastrundt = malloc(20 * sizeof(char));
+                lastrundt = get_current_time_str(lastrundt);
+                if (is_config_exists(db, CONFIGNAMELASTRUNDT)) {
+                        update_config_value_str(db, CONFIGNAMELASTRUNDT, lastrundt, settings.verbosemode);
+                } else {
+                        add_config_value_str(db, CONFIGNAMELASTRUNDT, lastrundt, settings.verbosemode);
                 }
         }
 
@@ -838,7 +862,8 @@ int main(int argc, char **argv)
                                         printf("%s", ipaddrnow);
                                 }
 
-                                // Run posthook next time again because CONFIGNAMEPREVIP is not updated to new ip in database.
+                                // Run posthook next time again because CONFIGNAMEPREVIP is
+                                // not updated to new ip in database.
                                 exit(EXIT_FAILURE);
                         }
                 }

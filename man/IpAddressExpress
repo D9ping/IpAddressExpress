@@ -14,6 +14,7 @@ without getting detected.
 
 .SH OPTIONS
 --showip        Always print the current public IPv4 address.
+                Except when --showlastrun is used.
 
 --unsafehttp    Allow the use of not secure http public ip services. This will make
                 IpAddressExpress use more services as http services and https services
@@ -27,6 +28,11 @@ without getting detected.
 --posthook      The command the execute if the current ip address is different from previous run.
 
 --retryposthook Rerun posthook on next run if posthook command fails.
+
+--showlastrun   Show the date and time in ISO8601 format when this programme 
+                has been runned and exit.
+
+--nosavelastrun Don't save the current time as last runned time.
 
 --tripleconfirm On detected ip address change confirm the changed ip address with
                 a third ip service to check if the ip change is correct.
