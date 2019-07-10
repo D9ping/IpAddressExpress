@@ -1,5 +1,5 @@
 .\" Manpage for IpAddressExpress.
-.TH man 8 "9 may 2019" "0.9.6" "IpAddressExpress man page"
+.TH man 8 "10 jul 2019" "1.0.0" "IpAddressExpress man page"
 .SH NAME
 IpAddressExpress \- Figure out the public IPv4 address confirmed with consensus.
 
@@ -16,10 +16,10 @@ without getting detected.
 --showip        Always print the current public IPv4 address.
                 Except when --showlastrun is used.
 
---unsafehttp    Allow the use of not secure http public ip services. This will make
-                IpAddressExpress use more services as http services and https services
-                are used increasing the reliability of getting the public IPv4 address.
-                But you will be vulnerable to man in the middle attacks due to the use
+--unsafehttp    Allow the use of a not secure HTTP public ip services. This will make
+                IpAddressExpress use more services and the reliability of getting 
+                the public IPv4 address increases.
+                But you will be vulnerable to man in the middle attacks due to the possible use
                 of not secure http.
 
 --delay [0-59]  Wait a number of seconds before starting to request any public https service
@@ -54,5 +54,5 @@ without getting detected.
 IpAddressExpress will have exit status 1 on an error and 0 if no error occured.
 
 .SH BUGS
-No known bugs.
-
+No known issues.
+Report bugs on: https://github.com/D9ping/IpAddressExpress/issues

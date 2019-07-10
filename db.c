@@ -312,13 +312,12 @@ int create_table_config(sqlite3 *db, bool verbosemode)
 int get_config_value_int(sqlite3 *db, char * name)
 {
         int value_int = -1;
-        int retcode = 0;
         sqlite3_stmt *stmt = NULL;
-        retcode = sqlite3_prepare_v2(db,
-                                     "SELECT `valueint` FROM `config` WHERE `name` = ?1 LIMIT 1;",
-                                     -1,
-                                     &stmt,
-                                     NULL);
+        sqlite3_prepare_v2(db,
+                           "SELECT `valueint` FROM `config` WHERE `name` = ?1 LIMIT 1;",
+                           -1,
+                           &stmt,
+                           NULL);
         sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
         while (sqlite3_step(stmt) == SQLITE_ROW) {
                 value_int = sqlite3_column_int(stmt, 0);

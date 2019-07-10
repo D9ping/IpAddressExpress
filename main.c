@@ -28,7 +28,7 @@
 #include "db.h"
 
 #define PROGRAMNAME           "IpAddressExpress"
-#define PROGRAMVERSION        "0.9.6-beta"
+#define PROGRAMVERSION        "1.0.0"
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/IpAddressExpress)"
 #define DATABASEFILENAME      "ipaddressexpress.db"
 #define CONFIGNAMEPREVIP      "lastrunip"
