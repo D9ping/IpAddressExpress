@@ -1,5 +1,5 @@
 /***************************************************************************
- *    Copyright (C) 2018-2019 D9ping
+ *    Copyright (C) 2018-2020 D9ping
  *
  * IpAddressExpress is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "db.h"
 
 #define PROGRAMNAME           "IpAddressExpress"
-#define PROGRAMVERSION        "1.0.0"
+#define PROGRAMVERSION        "1.0.1"
 #define PROGRAMWEBSITE        " (+https://github.com/D9ping/IpAddressExpress)"
 #define DATABASEFILENAME      "ipaddressexpress.db"
 #define CONFIGNAMEPREVIP      "lastrunip"
@@ -106,11 +106,10 @@ void print_error_with_url(char * errormsgformat, const char * url)
 }
 
 /**
- * Print the different results from ip services
+ * Print the different results from public ip address services.
  */
 void print_detected_difference(char * ipaddrnow, char * ipaddrconfirm, const char * urlipservice, const char * confirmurl)
 {
-        //fprintf(stderr, "Alert: one of the ip address services could have lied.\n");
         print_dt_error("Alert: one of the ip address services could have lied.\n");
         fprintf(stderr, "IPv4: %s from %s.\n", ipaddrnow, urlipservice);
         fprintf(stderr, "IPv4: %s from %s.\n", ipaddrconfirm, confirmurl);
@@ -168,7 +167,7 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
         int resreadrnd = fread(seed, sizeof(uint), SEED_LENGTH, rand_fd);
         if (resreadrnd <= 0) {
                 if (!silentmode) {
-                        printf("Could not read from /dev/urandom.\n");
+                        print_dt_error("Warning: Could not read from /dev/urandom.\n");
                 }
         }
 
@@ -207,7 +206,7 @@ int get_new_random_urlnr(sqlite3 *db, bool unsafehttp, bool unsafedns, bool verb
                 }
 
                 if (urlnr == lasturlnr && tries == MAXCHOOSERETRIES && !silentmode) {
-                        printf("Maximum number of retries choicing different urlnr reached.\n\
+                        print_dt_error("Maximum number of retries to choice different urlnr has been reached.\n\
  Could not avoid to use same urlnr as in last run.\n");
                 }
         }
@@ -249,7 +248,7 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
         fpfileip = fopen(filepathip, "r");
         if (fpfileip == NULL) {
                 if (!silentmode) {
-                        print_dt_error("Error: Could not get public ip from file.\n");
+                        print_dt_error("Error: Could not get public ip address from file.\n");
                 }
 
                 exit(EXIT_FAILURE);
@@ -277,12 +276,14 @@ char * read_file_ipaddr(char *filepathip, bool silentmode)
  */
 void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
 {
+        char errmsg[128];
+        int cw;
         switch (httpcode) {
         case 420L:
         case 429L:
         case 503L:
         case 509L:
-                printf("Warn: rate limiting active.\
+                print_dt_error("Warning: rate limiting active.\
  Avoid the current public ip address service for some time.");
                 // Temporary disable
                 update_disabled_ipsevice(db, urlnr, true);
@@ -291,8 +292,14 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 500L:
         case 502L:
         case 504L:
-                printf("Warn: used public ip address service has an error or other issue\
- (http error: %d).\n", httpcode);
+                cw = snprintf(errmsg,
+                              128,
+                              "Warning: used public ip address service has an error or other issue (http error: %d).\n",
+                              httpcode);
+                if (cw >= 0 && cw <= 128) {
+                        print_dt_error(errmsg);
+                }
+
                 // Temporary disable
                 update_disabled_ipsevice(db, urlnr, true);
                 break;
@@ -300,16 +307,23 @@ void parse_httpcode_status(int httpcode, sqlite3 *db, int urlnr)
         case 403L:
         case 404L:
         case 410L:
-                printf("Warn: the used public ip address service has quit or does not\
- want automatic use.\nNever use this public ip service again.\n");
+                print_dt_error("Warning: the used public ip address service has quit or does not\
+ want automatic use.\nNever use this public ip address service again.\n");
                 // Disable forever
                 update_disabled_ipsevice(db, urlnr, false);
                 break;
         case 301L:
         case 302L:
         case 308L:
-                printf("Warn: public IP address service has changed url and is redirecting\
- (http status code: %d).\n", httpcode);
+                cw = snprintf(errmsg,
+                              128,
+                              "Warning: public IP address service has changed url and is redirecting\
+ (http status code: %d).\n",
+                              httpcode);
+                if (cw >= 0 && cw <= 128) {
+                        print_dt_error(errmsg);
+                }
+
                 // Disable forever
                 update_disabled_ipsevice(db, urlnr, false);
                 break;
@@ -334,7 +348,7 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         CURL * curlsession = curl_easy_init();
         if (!curlsession || curlsession == NULL) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: should not setup curl session.\n");
+                        print_dt_error("Error: should not setup cUrl session.\n");
                 }
 
                 curl_easy_cleanup(curlsession);
@@ -376,10 +390,13 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         // Check for errors
         if (res != CURLE_OK) {
                 if (!silentmode) {
-                        fprintf(stderr,
-                                "Error: %s, url: %s\n",
-                                curl_easy_strerror(res),
-                                urlipservice);
+			char curlErr[1024];
+			int cw;
+			snprintf(curlErr,
+                                 1024,
+                                 "Error: %s\n",
+				 curl_easy_strerror(res));
+                        print_dt_error(curlErr);
                 }
 
                 curl_easy_cleanup(curlsession);
@@ -422,7 +439,13 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         // Check filesize
         if (downloadedfilesize == 0) {
                 if (!silentmode) {
-                        fprintf(stderr, "Error: downloaded file is empty(urlnr = %d).\n", urlnr);
+			char emptyFileErr[128];
+			int cw;
+			cw = snprintf(emptyFileErr,
+                                      128,
+                                      "Error: downloaded file is empty(urlnr = %d).\n",
+				      urlnr);
+			print_dt_error(emptyFileErr);
                 }
 
                 // Temporary disable
@@ -431,7 +454,13 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         } else if (downloadedfilesize > MAXSIZEIPADDRDOWNLOAD) {
                 // Did not return only an ip address.
                 if (!silentmode) {
-                        fprintf(stderr, "Error: response ip service(urlnr = %d) too big.\n", urlnr);
+			char responseTooBigErr[128];
+			int cw;
+			cw = snprintf(responseTooBigErr,
+                                      128,
+				      "Error: response ip service(urlnr = %d) too big.\n",
+				      urlnr);
+			print_dt_error(responseTooBigErr);
                 }
 
                 // Temporary disable
@@ -472,7 +501,7 @@ struct Settings parse_commandline_args(int argc, char **argv, struct Settings se
         bool argnumdelaysec = false;
         bool argnumerrorwait = false;
         bool argposthook = false;
-        // Parse commandline arguments and set settings struct.
+        // Parse command-line arguments and set settings struct.
         for (int n = 1; n < argc; ++n) {
                 if (argnumdelaysec) {
                         argnumdelaysec = false;
