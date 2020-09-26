@@ -390,12 +390,12 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         // Check for errors
         if (res != CURLE_OK) {
                 if (!silentmode) {
-			char curlErr[1024];
-			int cw;
-			snprintf(curlErr,
+                char curlErr[1024];
+                int cw;
+                snprintf(curlErr,
                                  1024,
                                  "Error: %s\n",
-				 curl_easy_strerror(res));
+                curl_easy_strerror(res));
                         print_dt_error(curlErr);
                 }
 
@@ -439,13 +439,13 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         // Check filesize
         if (downloadedfilesize == 0) {
                 if (!silentmode) {
-			char emptyFileErr[128];
-			int cw;
-			cw = snprintf(emptyFileErr,
-                                      128,
-                                      "Error: downloaded file is empty(urlnr = %d).\n",
-				      urlnr);
-			print_dt_error(emptyFileErr);
+                char emptyFileErr[128];
+                int cw;
+                cw = snprintf(emptyFileErr,
+                              128,
+                              "Error: downloaded file is empty(urlnr = %d).\n",
+                              urlnr);
+                    print_dt_error(emptyFileErr);
                 }
 
                 // Temporary disable
@@ -454,13 +454,13 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         } else if (downloadedfilesize > MAXSIZEIPADDRDOWNLOAD) {
                 // Did not return only an ip address.
                 if (!silentmode) {
-			char responseTooBigErr[128];
-			int cw;
-			cw = snprintf(responseTooBigErr,
-                                      128,
-				      "Error: response ip service(urlnr = %d) too big.\n",
-				      urlnr);
-			print_dt_error(responseTooBigErr);
+                char responseTooBigErr[128];
+                int cw;
+                cw = snprintf(responseTooBigErr,
+                              128,
+                              "Error: response ip service(urlnr = %d) too big.\n",
+                              urlnr);
+                    print_dt_error(responseTooBigErr);
                 }
 
                 // Temporary disable
