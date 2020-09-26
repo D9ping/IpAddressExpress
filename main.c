@@ -655,7 +655,7 @@ int main(int argc, char **argv)
                 add_ipservice(db, 8, "https://l2.io/ip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
                 add_ipservice(db, 9, "https://www.trackip.net/ip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
                 add_ipservice(db, 10, "https://ip4.seeip.org/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
-                add_ipservice(db, 11, "https://locate.now.sh/ip", false, PROTOCOLHTTPS, 2, settings.verbosemode);
+                add_ipservice(db, 11, "https://locate.now.sh/ip", true, PROTOCOLHTTPS, 2, settings.verbosemode);
                 add_ipservice(db, 12, "https://tnx.nl/ip", false, PROTOCOLHTTPS, 3, settings.verbosemode);
                 add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
                 add_ipservice(db, 14, "https://ip4.seeip.org/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
