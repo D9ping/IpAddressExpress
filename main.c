@@ -338,7 +338,7 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                                  bool unsafehttp, bool silentmode, int * httpcodestatus)
 {
         //char * downloadtempfilepath;
-        char * downloadtempfilepath = malloc(20 * sizeof(char));
+        char * downloadtempfilepath = malloc(16 * sizeof(char));
         downloadtempfilepath = "/tmp/tempip.txt";
         FILE *fpdownload;
         // mode w+: truncates the file to zero length if it exists,
@@ -439,13 +439,12 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         // Check filesize
         if (downloadedfilesize == 0) {
                 if (!silentmode) {
-                char emptyFileErr[128];
-                int cw;
-                cw = snprintf(emptyFileErr,
-                              128,
-                              "Error: downloaded file is empty(urlnr = %d).\n",
-                              urlnr);
-                    print_dt_error(emptyFileErr);
+                        char emptyFileErr[128];
+                        snprintf(emptyFileErr,
+                                 128,
+                                 "Error: downloaded file is empty(urlnr = %d).\n",
+                                 urlnr);
+                        print_dt_error(emptyFileErr);
                 }
 
                 // Temporary disable
@@ -454,13 +453,12 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         } else if (downloadedfilesize > MAXSIZEIPADDRDOWNLOAD) {
                 // Did not return only an ip address.
                 if (!silentmode) {
-                char responseTooBigErr[128];
-                int cw;
-                cw = snprintf(responseTooBigErr,
-                              128,
-                              "Error: response ip service(urlnr = %d) too big.\n",
-                              urlnr);
-                    print_dt_error(responseTooBigErr);
+                        char responseTooBigErr[128];
+                        snprintf(responseTooBigErr,
+                                 128,
+                                 "Error: response ip service(urlnr = %d) too big.\n",
+                                 urlnr);
+                        print_dt_error(responseTooBigErr);
                 }
 
                 // Temporary disable
@@ -694,7 +692,7 @@ int main(int argc, char **argv)
         }
 
         int httpcodestatus = 0;
-        char * ipaddrnow;
+        char * ipaddrnow;  // FIXME: uninitialized variable ipaddrnow
         ipaddrnow = download_ipaddr_ipservice(ipaddrnow,
                                               urlipservice,
                                               db,
@@ -730,6 +728,7 @@ int main(int argc, char **argv)
                 }
 
                 int httpcodeconfirm = -1;
+                // FIXME: uninitialized variable ipaddrconfirm
                 ipaddrconfirm = download_ipaddr_ipservice(ipaddrconfirm,
                                                           confirmurl,
                                                           db,
@@ -795,6 +794,7 @@ int main(int argc, char **argv)
 
                         char *ipaddrconfirmchange;
                         int httpcodeconfirmchange = -2;
+                        // FIXME: uninitialized variable ipaddrconfirmchange
                         ipaddrconfirmchange = download_ipaddr_ipservice(ipaddrconfirmchange,
                                                                         confirmchangeurl,
                                                                         db,

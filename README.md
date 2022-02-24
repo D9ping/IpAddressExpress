@@ -34,9 +34,10 @@ sudo apt-get install build-essential libcurl4-openssl-dev libsqlite3-dev git-cor
 ```
 Get the IpAddressExpress sourcecode in the current folder with:
 ```
+cd /opt
 git clone https://github.com/D9ping/IpAddressExpress.git
 ```
-Compile the program with: 
+Then compile the program: 
 ```
 cd IpAddressExpress/
 make
@@ -49,7 +50,7 @@ dynamic DNS entries with a shell script. Do the following:
 1. Run ```crontab -e``` to edit your crontab. 
 2. Add the following line to run IpAddressExpress every 10 minutes as current user.
 ```
-*/10 * * * * ~/IpAddressExpress/ipaddressexpress --posthook "/bin/sh ~/IpAddressExpress/update_ip_dns.sh"
+*/10 * * * * /opt/IpAddressExpress/ipaddressexpress --posthook "/bin/sh /opt/IpAddressExpress/update_ip_dns.sh"
 ``` 
 Edit the update_ip_dns.sh example shell script with your code for updating your dynamic DNS entries.
 

@@ -1,0 +1,20 @@
+# Last Modified: Thu Feb 24 23:51:41 2022
+#include <tunables/global>
+
+/opt/IpAddressExpress/ipaddressexpress flags=(complain) {
+  #include <abstractions/base>
+
+  /etc/gai.conf r,
+  /etc/host.conf r,
+  /etc/hosts r,
+  /etc/nsswitch.conf r,
+  /etc/resolv.conf r,
+  /etc/ssl/openssl.cnf r,
+  /opt/IpAddressExpress/ipaddressexpress mr,
+  /usr/share/ca-certificates/mozilla/*.crt r,
+  owner /opt/IpAddressExpress/ r,
+  owner /opt/IpAddressExpress/ipaddressexpress.db rwk,
+  owner /opt/IpAddressExpress/ipaddressexpress.db-journal rw,
+  owner /tmp/tempip.txt rw,
+
+}
