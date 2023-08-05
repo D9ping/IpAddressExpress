@@ -360,15 +360,31 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
         curl_easy_setopt(curlsession, CURLOPT_HTTPGET, 1L);
         // Write to fpdownload
         curl_easy_setopt(curlsession, CURLOPT_WRITEDATA, fpdownload);
-        // Default 300s, changed to max. 20 seconds to connect
-        curl_easy_setopt(curlsession, CURLOPT_CONNECTTIMEOUT, 20L);
-        // Default timeout is 0/never. changed to 25 seconds
-        curl_easy_setopt(curlsession, CURLOPT_TIMEOUT, 25L);
+        // Default 300s, changed to max. 90 seconds to connect
+        curl_easy_setopt(curlsession, CURLOPT_CONNECTTIMEOUT, 90L);
+        // Default timeout is 0/never. changed to 90 seconds
+        curl_easy_setopt(curlsession, CURLOPT_TIMEOUT, 90L);
+        // Enable TLS false start. default disabled in curl, more testing needed.
+        //curl_easy_setopt(curlsession, CURLOPT_SSL_FALSESTART, 1L);
         // Never follow redirects.
         curl_easy_setopt(curlsession, CURLOPT_FOLLOWLOCATION, 0L);
         curl_easy_setopt(curlsession, CURLOPT_MAXREDIRS, 0L);
+        // Make libcurl explicitly close the connection when done with the transfer. 
+        curl_easy_setopt(curlsession, CURLOPT_FORBID_REUSE, 1L);
+        // limit the connection cache for this handle to no more than 3.
+        // Default 5
+        curl_easy_setopt(curlsession, CURLOPT_MAXCONNECTS, 3L);
+        // enable TCP keep-alive for this transfer
+        // Default 0
+        curl_easy_setopt(curlsession, CURLOPT_TCP_KEEPALIVE, 0L);
+        // TCP Fast Open: Default 0
+        // Beware: the TLS session cache does not work when TCP Fast Open is enabled. 
+        // TCP Fast Open is also known to be problematic on or across certain networks. 
+        //curl_easy_setopt(curlsession, CURLOPT_TCP_FASTOPEN, 0L);
         // Resolve host name using IPv4-names only
         curl_easy_setopt(curlsession, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+        // Only support TLS 1.2 and later only.
+        curl_easy_setopt(curlsession, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         if (!unsafehttp) {
                 // Only allow https to be used.
                 curl_easy_setopt(curlsession, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -393,9 +409,9 @@ char * download_ipaddr_ipservice(char *ipaddr, const char *urlipservice, sqlite3
                 char curlErr[1024];
                 int cw;
                 snprintf(curlErr,
-                                 1024,
-                                 "Error: %s\n",
-                curl_easy_strerror(res));
+                         1024,
+                         "Error: %s (urlnr = %d)\n",
+                        curl_easy_strerror(res), urlnr);
                         print_dt_error(curlErr);
                 }
 
@@ -648,20 +664,26 @@ int main(int argc, char **argv)
                 add_ipservice(db, 3, "https://v4.ident.me/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
                 add_ipservice(db, 4, "https://ipv4.icanhazip.com/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
                 add_ipservice(db, 5, "https://checkip.amazonaws.com/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
-                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                // Dns does not response anymore, api seems gone
+                add_ipservice(db, 6, "https://bot.whatismyipaddress.com/", true, PROTOCOLHTTPS, 2, settings.verbosemode);
                 add_ipservice(db, 7, "https://secure.informaction.com/ipecho/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
                 add_ipservice(db, 8, "https://l2.io/ip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
                 add_ipservice(db, 9, "https://www.trackip.net/ip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
-                add_ipservice(db, 10, "https://ip4.seeip.org/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                // Has https connect error.
+                add_ipservice(db, 10, "https://ip4.seeip.org/", true, PROTOCOLHTTPS, 2, settings.verbosemode);
+                // Page not found:
                 add_ipservice(db, 11, "https://locate.now.sh/ip", true, PROTOCOLHTTPS, 2, settings.verbosemode);
-                add_ipservice(db, 12, "https://tnx.nl/ip", false, PROTOCOLHTTPS, 3, settings.verbosemode);
-                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", false, PROTOCOLHTTPS, 1, settings.verbosemode);
-                add_ipservice(db, 14, "https://ip4.seeip.org/", false, PROTOCOLHTTPS, 1, settings.verbosemode);
-                add_ipservice(db, 15, "http://myip.dnsomatic.com/", false, PROTOCOLHTTP, 1, settings.verbosemode);
-                add_ipservice(db, 16, "http://whatismyip.akamai.com/", false, PROTOCOLHTTP, 1, settings.verbosemode);
-                add_ipservice(db, 17, "http://myexternalip.com/raw", false, PROTOCOLHTTP, 1, settings.verbosemode);
-                add_ipservice(db, 18, "https://ipecho.net/plain", false, PROTOCOLHTTPS, 1, settings.verbosemode);
-                add_ipservice(db, 19, "http://plain-text-ip.com/", false, PROTOCOLHTTP, 2, settings.verbosemode);
+                // Response returns more than only IPv4 address now.
+                add_ipservice(db, 12, "https://tnx.nl/ip", true, PROTOCOLHTTPS, 2, settings.verbosemode);
+                // Page not found:
+                add_ipservice(db, 13, "https://diagnostic.opendns.com/myip", true, PROTOCOLHTTPS, 2, settings.verbosemode);
+                // Can give: 429 error
+                add_ipservice(db, 14, "http://myip.dnsomatic.com/", false, PROTOCOLHTTP, 2, settings.verbosemode);
+                add_ipservice(db, 15, "http://whatismyip.akamai.com/", false, PROTOCOLHTTP, 1, settings.verbosemode);
+                add_ipservice(db, 16, "http://myexternalip.com/raw", false, PROTOCOLHTTP, 1, settings.verbosemode);
+                add_ipservice(db, 17, "https://ipecho.net/plain", false, PROTOCOLHTTPS, 1, settings.verbosemode);
+                // Error page:
+                add_ipservice(db, 18, "http://plain-text-ip.com/", true, PROTOCOLHTTP, 2, settings.verbosemode);
         }
 
         if (settings.showlastrun) {
